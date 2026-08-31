@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/translate v1.18.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/google/uuid v1.6.0
-	github.com/unidoc/unidoc v2.2.0+incompatible
+	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
 	go.uber.org/zap v1.28.0
 	golang.org/x/text v0.41.0
 	google.golang.org/api v0.287.1
@@ -63,7 +63,6 @@ require (
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/arch v0.22.0 // indirect
 	golang.org/x/crypto v0.53.0 // indirect
-	golang.org/x/image v0.45.0 // indirect
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
