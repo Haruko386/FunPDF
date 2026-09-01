@@ -39,6 +39,9 @@
 
 FunPDF is a lightweight, self-hosted PDF reader and annotation prototype. It combines a Vue 3 web interface with a Go API and stores document metadata in MySQL. Uploaded PDFs and their editor state are kept in a local `Cache` directory.
 
+> [!important]
+> The `master` branch contains only the front-end and back-end applications for the web architecture. For desktop applications, please refer to the `main` branch.
+
 <a id="get-started"></a>
 ## 🎮 Get Started
 
