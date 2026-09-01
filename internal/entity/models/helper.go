@@ -128,7 +128,7 @@ func doNoneStreamChat(client *http.Client, req *http.Request, providerName strin
 
 	reasoningFiled := ""
 	switch providerName {
-	case "DeepSeek", "MoonShot":
+	case "DeepSeek", "MoonShot", "SiliconFlow, Aliyun":
 		reasoningFiled = "reasoning_content"
 	}
 
