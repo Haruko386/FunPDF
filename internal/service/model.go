@@ -133,6 +133,14 @@ func (s *ModelService) ChatToModel(ctx context.Context, providerID, modelName, m
 	}
 
 	switch strings.ToLower(strings.TrimSpace(provider.Name)) {
+	case "openai":
+		return (&models.OpenAIModel{
+			BaseModel: models.BaseModel{
+				BaseURL:    strings.TrimRight(provider.BaseURL, "/"),
+				URLSuffix:  strings.TrimLeft(provider.URLSuffix["chat"], "/"),
+				HTTPClient: s.httpClient,
+			},
+		}).Chat(ctx, &modelCfg, &chatCfg, messages, modelName, streamSender)
 	case "deepseek":
 		return (&models.DeepSeekModel{
 			BaseModel: models.BaseModel{
@@ -143,6 +151,22 @@ func (s *ModelService) ChatToModel(ctx context.Context, providerID, modelName, m
 		}).Chat(ctx, &modelCfg, &chatCfg, messages, modelName, streamSender)
 	case "moonshot":
 		return (&models.MoonShotModel{
+			BaseModel: models.BaseModel{
+				BaseURL:    strings.TrimRight(provider.BaseURL, "/"),
+				URLSuffix:  strings.TrimLeft(provider.URLSuffix["chat"], "/"),
+				HTTPClient: s.httpClient,
+			},
+		}).Chat(ctx, &modelCfg, &chatCfg, messages, modelName, streamSender)
+	case "siliconflow":
+		return (&models.SiliconFlowModel{
+			BaseModel: models.BaseModel{
+				BaseURL:    strings.TrimRight(provider.BaseURL, "/"),
+				URLSuffix:  strings.TrimLeft(provider.URLSuffix["chat"], "/"),
+				HTTPClient: s.httpClient,
+			},
+		}).Chat(ctx, &modelCfg, &chatCfg, messages, modelName, streamSender)
+	case "aliyun":
+		return (&models.AliyunModel{
 			BaseModel: models.BaseModel{
 				BaseURL:    strings.TrimRight(provider.BaseURL, "/"),
 				URLSuffix:  strings.TrimLeft(provider.URLSuffix["chat"], "/"),
@@ -172,6 +196,14 @@ func (s *ModelService) ListSupportedModels(ctx context.Context, providerID strin
 	modelCfg.APIKey = &apiKey
 
 	switch strings.ToLower(strings.TrimSpace(provider.Name)) {
+	case "openai":
+		return (&models.OpenAIModel{
+			BaseModel: models.BaseModel{
+				BaseURL:    strings.TrimRight(provider.BaseURL, "/"),
+				URLSuffix:  strings.TrimLeft(provider.URLSuffix["models"], "/"),
+				HTTPClient: s.httpClient,
+			},
+		}).ListModels(ctx, &modelCfg)
 	case "deepseek":
 		return (&models.DeepSeekModel{
 			BaseModel: models.BaseModel{
@@ -182,6 +214,22 @@ func (s *ModelService) ListSupportedModels(ctx context.Context, providerID strin
 		}).ListModels(ctx, &modelCfg)
 	case "moonshot":
 		return (&models.MoonShotModel{
+			BaseModel: models.BaseModel{
+				BaseURL:    strings.TrimRight(provider.BaseURL, "/"),
+				URLSuffix:  strings.TrimLeft(provider.URLSuffix["models"], "/"),
+				HTTPClient: s.httpClient,
+			},
+		}).ListModels(ctx, &modelCfg)
+	case "siliconflow":
+		return (&models.SiliconFlowModel{
+			BaseModel: models.BaseModel{
+				BaseURL:    strings.TrimRight(provider.BaseURL, "/"),
+				URLSuffix:  strings.TrimLeft(provider.URLSuffix["models"], "/"),
+				HTTPClient: s.httpClient,
+			},
+		}).ListModels(ctx, &modelCfg)
+	case "aliyun":
+		return (&models.AliyunModel{
 			BaseModel: models.BaseModel{
 				BaseURL:    strings.TrimRight(provider.BaseURL, "/"),
 				URLSuffix:  strings.TrimLeft(provider.URLSuffix["models"], "/"),
