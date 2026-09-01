@@ -3,24 +3,31 @@
 </div>
 
 <p align="center">
-  <a href="../README.md"><img alt="English README" src="https://img.shields.io/badge/English-DFE0E5"></a>
-  <a href="./README_zh.md"><img alt="简体中文 README" src="https://img.shields.io/badge/简体中文-DBEDFA"></a>
+  <a href="../README.md" style="text-decoration: none;"><img alt="English README" src="https://img.shields.io/badge/English-DFE0E5" style="display: inline-block; vertical-align: middle;"></a>
+  <a href="./README_zh.md" style="text-decoration: none;"><img alt="简体中文 README" src="https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-DBEDFA" style="display: inline-block; vertical-align: middle;"></a>
 </p>
+
+<div align="center">
+
+  [![Language](../external/badge/Vue-Golang-00ADD8.svg)](https://github.com/haruko386/funpdf)
+  [![Release](../external/badge/Latest%20release-blue.svg)](https://github.com/haruko386/funpdf/releases/latest)
+  [![Language](../external/badge/License-GNU%20General%20Public.svg)](https://github.com/haruko386/funpdf/blob/main/LICENSE)
+</div>
 
 <details open>
 <summary>📕 <strong>目录</strong></summary>
 
-- [💡 FunPDF 是什么？](#-funpdf-是什么)
-- [🎮 快速开始](#-快速开始)
+- [💡 FunPDF 是什么？](#what-is-funpdf)
+- [🎮 快速开始](#get-started)
   - [环境要求](#环境要求)
   - [启动应用](#启动应用)
-- [🌟 主要功能](#-主要功能)
-- [🎬 使用 Docker 运行](#-使用-docker-运行)
-- [🔧 配置](#-配置)
-- [🔨 构建 Docker 镜像](#-构建-docker-镜像)
-- [🛠️ 从源码启动开发环境](#️-从源码启动开发环境)
-- [📖 文档](#-文档)
-- [🙌 参与贡献](#-参与贡献)
+- [🌟 主要功能](#key-features)
+- [🎬 使用 Docker 运行](#run-with-docker)
+- [🔧 配置](#configurations)
+- [🔨 构建 Docker 镜像](#build-a-docker-image)
+- [🛠️ 从源码启动开发环境](#launch-from-source-for-development)
+- [📖 文档](#documentation)
+- [🙌 参与贡献](#contributing)
 - [开源许可](#开源许可)
 
 </details>
@@ -29,9 +36,6 @@
 ## 💡 FunPDF 是什么？
 
 FunPDF 是一个轻量、可自托管的 PDF 阅读与标注原型。项目使用 Vue 3 构建网页界面，使用 Go 提供 API，并通过 MySQL 保存文档元数据。上传的 PDF 及其编辑状态保存在本地 `Cache` 目录中。
-
-> [!NOTE]
-> FunPDF 仍在持续开发中。翻译、服务商管理、参考文献和部分 AI 相关入口目前尚未完成。
 
 <a id="get-started"></a>
 ## 🎮 快速开始
@@ -57,12 +61,41 @@ npm run dev
 <a id="key-features"></a>
 ## 🌟 主要功能
 
-- 使用 PDF.js 打开并渲染本地 PDF
-- 翻页、缩放、旋转、搜索、打印和导出 PDF
-- 添加画笔、高亮、下划线、删除线和便签标注
-- 将 PDF 和编辑状态保存到本地文件库
-- 使用合集整理已保存的文件
-- 使用 Docker Compose 自托管 API 与 MySQL
+- PDF 阅读
+  - 打开本地 `.pdf` 文件和可编辑的 `.funpdf` 工程文件
+  - 使用 PDF.js 渲染页面、文本层和 PDF 内部/外部链接
+  - 支持翻页、缩放、适应宽度、旋转、拖拽打开文件，以及多 PDF 标签页
+  - 支持复制选中文字，并通过选区浮层执行常用操作
+- 标注与编辑
+  - 支持画笔、高亮、下划线、删除线和橡皮擦
+  - 支持通过工具栏或选中文字创建便签
+  - 侧栏可查看便签列表和已保存的翻译片段
+  - 支持撤销、重做、清空标注，并跟踪未保存编辑状态
+- 保存与导出
+  - 将 PDF 原文件、编辑状态、缩略图和修订号保存到本地文件库
+  - 对已保存文档自动保存编辑状态
+  - 导出或打印已扁平化的 PDF，标注会写入导出文件
+  - 使用 `.funpdf` 格式保存可重新打开的编辑工程
+- 文件库与合集管理
+  - 浏览公共文件区，重新打开已保存 PDF，重命名文件并删除已存文件
+  - 创建、编辑和删除合集，支持自动生成或上传合集封面
+  - 将公共文件加入合集，从合集中移除文件但不删除源文件，并查看文件所属合集
+- 翻译
+  - 配置百度、DeepL、Google 和 Azure 翻译器凭据
+  - 从侧栏或选区浮层翻译 PDF 选中文字
+  - 在本地持久化源语言、目标语言和各翻译器的运行参数
+  - 可将翻译结果保存回便签标注
+- AI 辅助阅读
+  - 在侧栏配置 AI 服务商和模型列表
+  - 为每个 PDF 创建独立对话会话，并以流式方式返回模型回答和可选思考内容
+  - 支持围绕当前 PDF 或选中文字引用进行提问
+  - 支持设置 temperature、top-p、max tokens、thinking 和 effort 等对话参数
+  - 当前后端的聊天和云端模型列表实现主要面向 DeepSeek 兼容服务商
+- 运行与部署
+  - 使用 Gin、GORM 构建 Go API，并通过 MySQL 保存元数据
+  - 使用本地 `Cache` 保存上传的 PDF、编辑状态、缩略图，并提供可恢复的删除流程
+  - 使用 Docker Compose 启动后端 API 与 MySQL
+  - UI 设置面板支持开关 AI Chat、翻译和便签功能
 
 <a id="run-with-docker"></a>
 ## 🎬 使用 Docker 运行
@@ -162,7 +195,6 @@ cd web && npm run build
 <a id="documentation"></a>
 ## 📖 文档
 
-- [English README](../README.md)
 - [当前文件 API 说明](../internal/development.md)
 
 <a id="contributing"></a>
