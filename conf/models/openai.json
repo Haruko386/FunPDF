@@ -4,7 +4,7 @@
     "default": "https://api.openai.com/v1"
   },
   "url_suffix": {
-    "chat": "chat/completions",
+    "chat": "responses",
     "models": "models"
   }
 }
