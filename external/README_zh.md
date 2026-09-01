@@ -37,6 +37,9 @@
 
 FunPDF 是一个轻量、可自托管的 PDF 阅读与标注原型。项目使用 Vue 3 构建网页界面，使用 Go 提供 API，并通过 MySQL 保存文档元数据。上传的 PDF 及其编辑状态保存在本地 `Cache` 目录中。
 
+> [!important]
+> `Master` 分支只有web架构的前后端应用，桌面端应用请移步 `Main` 分支
+
 <a id="get-started"></a>
 ## 🎮 快速开始
 
