@@ -1096,11 +1096,13 @@ function noteMarkers(page: number) {
   if (!store.featureFlags.notes) return []
   const viewport = pageViewport(page)
   if (!viewport) return []
-  const railX = viewport.width + 14
-  return (annotations[page] ?? [])
+  const leftRailX = -44
+  const rightRailX = viewport.width + 14
+  const maxRailTop = Math.max(viewport.height - 38, 10)
+  const markers = (annotations[page] ?? [])
     .filter(annotation => annotation.type === 'note')
     .filter(annotation => store.featureFlags.translation || annotation.text || !annotation.translations?.length)
-    .map((annotation, index) => {
+    .map(annotation => {
       const quoteRects = annotation.quoteRects ?? []
       const firstQuoteRect = quoteRects[0]
       const lastQuoteRect = quoteRects[quoteRects.length - 1]
@@ -1114,32 +1116,42 @@ function noteMarkers(page: number) {
         : viewportPoint(annotation.point, page)
       const isTranslation = Boolean(annotation.translations?.length && !annotation.text)
       const railTop = Math.min(Math.max(point.y - 13, 10), Math.max(viewport.height - 38, 10))
+      const railSide = quoteRects.length && point.x < viewport.width / 2 ? 'left' : 'right'
+      const railLeft = railSide === 'left' ? leftRailX : rightRailX
       return {
         annotation,
         point,
         label: isTranslation ? 'T' : 'N',
         isTranslation,
-        railLeft: railX,
+        railSide,
+        railLeft,
         railTop,
         connectorX1: point.x,
         connectorY1: point.y,
-        connectorX2: railX,
+        connectorX2: railSide === 'left' ? railLeft + 30 : railLeft,
         connectorY2: railTop + 13,
-        stackOffset: index % 3,
+        railOffset: 0,
       }
     })
-    .sort((a, b) => a.railTop - b.railTop)
-    .map((marker, index, markers) => {
-      if (!marker.annotation.quoteRects?.length) return marker
-      const minGap = 30
-      const previous = markers[index - 1]
-      const railTop = previous?.annotation.quoteRects?.length
-        ? Math.min(Math.max(marker.railTop, previous.railTop + minGap), Math.max(viewport.height - 38, 10))
+
+  for (const railSide of ['left', 'right'] as const) {
+    const railMarkers = markers
+      .filter(marker => marker.annotation.quoteRects?.length && marker.railSide === railSide)
+      .sort((a, b) => a.railTop - b.railTop)
+
+    for (let index = 0; index < railMarkers.length; index += 1) {
+      const marker = railMarkers[index]
+      const previous = railMarkers[index - 1]
+      const railTop = previous
+        ? Math.min(Math.max(marker.railTop, previous.railTop + 30), maxRailTop)
         : marker.railTop
       marker.railTop = railTop
       marker.connectorY2 = railTop + 13
-      return marker
-    })
+      marker.railOffset = railSide === 'left' ? -(index % 3) * 4 : (index % 3) * 4
+    }
+  }
+
+  return markers
 }
 
 function moveAnnotationPoint(page: number, annotationId: string, local: PdfPoint) {
@@ -1956,7 +1968,7 @@ onBeforeUnmount(() => {
               v-if="marker.annotation.quoteRects?.length"
               class="note-connector"
               :class="{ 'translation-connector': marker.isTranslation, active: focusedAnnotationId === marker.annotation.id }"
-              :style="{ left: '0px', top: '0px', width: `${layout.width + 76}px`, height: `${layout.height}px` }"
+              :style="{ left: '0px', top: '0px', width: `${layout.width}px`, height: `${layout.height}px` }"
               aria-hidden="true"
             >
               <line
@@ -1976,7 +1988,7 @@ onBeforeUnmount(() => {
             <button
               class="note-marker"
               :class="{ 'translation-marker': marker.isTranslation, 'rail-marker': marker.annotation.quoteRects?.length, focused: focusedAnnotationId === marker.annotation.id }"
-              :style="marker.annotation.quoteRects?.length ? { left: `${marker.railLeft + marker.stackOffset * 4}px`, top: `${marker.railTop}px`, backgroundColor: marker.isTranslation ? '#f4f8fb' : '#fff8db', borderColor: marker.isTranslation ? '#9fc4dc' : marker.annotation.color, color: marker.isTranslation ? '#315b72' : '#7a5416' } : { left: `${marker.point.x}px`, top: `${marker.point.y}px`, backgroundColor: marker.isTranslation ? '#eeeeee' : marker.annotation.color, borderColor: marker.isTranslation ? '#c9c9c9' : marker.annotation.color, color: marker.isTranslation ? '#4f555b' : '#ffffff' }"
+              :style="marker.annotation.quoteRects?.length ? { left: `${marker.railLeft + marker.railOffset}px`, top: `${marker.railTop}px`, backgroundColor: marker.isTranslation ? '#f4f8fb' : '#fff8db', borderColor: marker.isTranslation ? '#9fc4dc' : marker.annotation.color, color: marker.isTranslation ? '#315b72' : '#7a5416' } : { left: `${marker.point.x}px`, top: `${marker.point.y}px`, backgroundColor: marker.isTranslation ? '#eeeeee' : marker.annotation.color, borderColor: marker.isTranslation ? '#c9c9c9' : marker.annotation.color, color: marker.isTranslation ? '#4f555b' : '#ffffff' }"
               :title="marker.isTranslation ? 'Open saved translation' : 'Open note'"
               @pointerdown.stop.prevent="startMarkerDrag($event, layout.pageNumber, marker.annotation)"
               @pointermove.stop.prevent="moveMarkerDrag($event, layout.pageNumber)"
@@ -2073,7 +2085,7 @@ onBeforeUnmount(() => {
 .document-tab em, .close-tab { width: 18px; height: 18px; flex: 0 0 18px; display: grid; place-items: center; border-radius: 5px; font-style: normal; font-size: 11px; }
 .close-tab:hover { background: #d9d9d9; color: #22272c; }
 .hidden-input { display: none; }
-.page-stage { flex: 1; min-height: 0; overflow: auto; position: relative; padding: 28px 118px 40px 42px; scroll-behavior: auto; }
+.page-stage { flex: 1; min-height: 0; overflow: auto; position: relative; padding: 28px 118px 40px; scroll-behavior: auto; }
 .page-flow { width: max-content; min-width: 100%; display: flex; flex-direction: column; align-items: center; gap: 16px; }
 .page-shell { position: relative; flex: 0 0 auto; overflow: visible; background: white; box-shadow: 0 2px 9px rgb(0 0 0 / 12%), 0 12px 26px rgb(0 0 0 / 8%); }
 .page-shell.current { outline: 1px solid rgb(85 90 96 / 22%); }
@@ -2150,5 +2162,5 @@ onBeforeUnmount(() => {
 .drop-overlay { position: absolute; inset: 18px; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; border: 2px dashed #85898e; border-radius: 16px; background: rgb(247 247 247 / 94%); color: #44494f; font-size: 18px; pointer-events: none; }
 .loading { position: fixed; left: 50%; top: 82px; transform: translateX(-50%); z-index: 8; background: rgb(255 255 255 / 94%); border: 1px solid #d8d8d8; border-radius: 8px; padding: 9px 13px; font-size: 12px; color: #666b70; box-shadow: 0 3px 12px rgb(0 0 0 / 8%); display: flex; gap: 8px; align-items: center; }
 .status-message { position: absolute; left: 50%; bottom: 70px; z-index: 15; transform: translateX(-50%); padding: 9px 14px; border-radius: 8px; background: rgb(55 58 62 / 94%); color: white; font-size: 12px; }
-@media (max-width: 720px) { .page-stage { padding: 20px 74px 38px 18px; } .page-flow { gap: 12px; } }
+@media (max-width: 720px) { .page-stage { padding: 20px 74px 38px; } .page-flow { gap: 12px; } }
 </style>
