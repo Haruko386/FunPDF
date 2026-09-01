@@ -78,6 +78,7 @@ const exporting = ref(false)
 const dragActive = ref(false)
 const rotation = ref(0)
 const renderRevision = ref(0)
+const focusedAnnotationId = ref('')
 const textSelection = ref({ open: false, page: 0, text: '', rects: [] as DOMRect[], left: 0, top: 0 })
 const translationPopup = ref({
   open: false,
@@ -940,6 +941,24 @@ function drawAnnotations(page: number) {
       context.lineTo(end.x, end.y)
       context.stroke()
     } else if (annotation.type === 'note') {
+      if (annotation.quoteRects?.length) {
+        const quoteRects = annotation.quoteRects
+        context.globalAlpha = annotation.translations?.length && !annotation.text ? 0.28 : 0.34
+        context.fillStyle = annotation.translations?.length && !annotation.text ? '#2563eb' : annotation.color
+        for (const quoteRect of quoteRects) {
+          const start = viewportPoint(quoteRect.start, page)
+          const end = viewportPoint(quoteRect.end, page)
+          context.fillRect(Math.min(start.x, end.x), Math.max(start.y, end.y) - 2, Math.abs(end.x - start.x), 2)
+        }
+        context.globalAlpha = 1
+        const lastRect = quoteRects[quoteRects.length - 1]
+        const start = viewportPoint(lastRect.start, page)
+        const end = viewportPoint(lastRect.end, page)
+        const x = Math.min(Math.max(Math.max(start.x, end.x) + 3, 4), viewport.width - 4)
+        context.fillRect(x, Math.min(start.y, end.y), 4, Math.max(Math.abs(end.y - start.y), 10))
+        context.restore()
+        continue
+      }
       const point = viewportPoint(annotation.point, page)
       context.beginPath()
       context.arc(point.x, point.y, 11, 0, Math.PI * 2)
@@ -1075,13 +1094,51 @@ function eraseAt(point: PdfPoint, page: number) {
 function noteMarkers(page: number) {
   renderRevision.value
   if (!store.featureFlags.notes) return []
+  const viewport = pageViewport(page)
+  if (!viewport) return []
+  const railX = viewport.width + 14
   return (annotations[page] ?? [])
     .filter(annotation => annotation.type === 'note')
     .filter(annotation => store.featureFlags.translation || annotation.text || !annotation.translations?.length)
-    .map(annotation => {
-      const point = viewportPoint(annotation.point, page)
+    .map((annotation, index) => {
+      const quoteRects = annotation.quoteRects ?? []
+      const firstQuoteRect = quoteRects[0]
+      const lastQuoteRect = quoteRects[quoteRects.length - 1]
+      const start = firstQuoteRect ? viewportPoint(firstQuoteRect.start, page) : undefined
+      const end = lastQuoteRect ? viewportPoint(lastQuoteRect.end, page) : undefined
+      const point = start && end
+        ? {
+            x: Math.min(Math.max(end.x + 4, 8), Math.max(viewport.width - 8, 8)),
+            y: Math.min(Math.max((start.y + end.y) / 2, 10), Math.max(viewport.height - 10, 10)),
+          }
+        : viewportPoint(annotation.point, page)
       const isTranslation = Boolean(annotation.translations?.length && !annotation.text)
-      return { annotation, point, label: isTranslation ? '...' : '!', isTranslation }
+      const railTop = Math.min(Math.max(point.y - 13, 10), Math.max(viewport.height - 38, 10))
+      return {
+        annotation,
+        point,
+        label: isTranslation ? 'T' : 'N',
+        isTranslation,
+        railLeft: railX,
+        railTop,
+        connectorX1: point.x,
+        connectorY1: point.y,
+        connectorX2: railX,
+        connectorY2: railTop + 13,
+        stackOffset: index % 3,
+      }
+    })
+    .sort((a, b) => a.railTop - b.railTop)
+    .map((marker, index, markers) => {
+      if (!marker.annotation.quoteRects?.length) return marker
+      const minGap = 30
+      const previous = markers[index - 1]
+      const railTop = previous?.annotation.quoteRects?.length
+        ? Math.min(Math.max(marker.railTop, previous.railTop + minGap), Math.max(viewport.height - 38, 10))
+        : marker.railTop
+      marker.railTop = railTop
+      marker.connectorY2 = railTop + 13
+      return marker
     })
 }
 
@@ -1096,6 +1153,7 @@ function moveAnnotationPoint(page: number, annotationId: string, local: PdfPoint
 
 function startMarkerDrag(event: PointerEvent, page: number, annotation: PdfAnnotation) {
   if (annotation.type !== 'note') return
+  if (annotation.quoteRects?.length) return
   const target = event.currentTarget as HTMLElement
   target.setPointerCapture(event.pointerId)
   draggingMarker = { page, annotationId: annotation.id, pointerId: event.pointerId, moved: false }
@@ -1517,6 +1575,45 @@ function scrollToPage(page: number, smooth = true) {
   void renderPage(page)
 }
 
+function annotationViewportPoint(annotation: PdfAnnotation, page: number) {
+  if (annotation.type !== 'note') return undefined
+  const viewport = pageViewport(page)
+  if (!viewport) return undefined
+  const quoteRects = annotation.quoteRects ?? []
+  if (!quoteRects.length) return viewportPoint(annotation.point, page)
+  const firstQuoteRect = quoteRects[0]
+  const lastQuoteRect = quoteRects[quoteRects.length - 1]
+  const start = viewportPoint(firstQuoteRect.start, page)
+  const end = viewportPoint(lastQuoteRect.end, page)
+  return {
+    x: Math.min(Math.max(end.x + 4, 8), Math.max(viewport.width - 8, 8)),
+    y: Math.min(Math.max((start.y + end.y) / 2, 10), Math.max(viewport.height - 10, 10)),
+  }
+}
+
+async function focusAnnotation(annotationId: string, page: number) {
+  const stage = stageRef.value
+  const pageElement = pageElements.get(page)
+  const annotation = annotationsForPage(page).find(item => item.id === annotationId)
+  if (!stage || !pageElement || !annotation) {
+    scrollToPage(page)
+    return
+  }
+
+  setCurrentPageFromView(page)
+  await renderPage(page)
+  await nextTick()
+  const point = annotationViewportPoint(annotation, page)
+  const top = point
+    ? pageElement.offsetTop + point.y - stage.clientHeight * 0.38
+    : pageElement.offsetTop - 22
+  stage.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' })
+  focusedAnnotationId.value = annotationId
+  window.setTimeout(() => {
+    if (focusedAnnotationId.value === annotationId) focusedAnnotationId.value = ''
+  }, 1800)
+}
+
 function hexToRgb(color: string) {
   const value = color.replace('#', '')
   const normalized = value.length === 3 ? value.split('').map(char => char + char).join('') : value
@@ -1709,6 +1806,14 @@ function handleBeforeUnload(event: BeforeUnloadEvent) {
   event.returnValue = ''
 }
 
+function handleFocusAnnotation(event: Event) {
+  const detail = (event as CustomEvent<{ annotationId?: string; page?: number }>).detail
+  const annotationId = detail?.annotationId
+  const page = detail?.page
+  if (!annotationId || !page) return
+  void focusAnnotation(annotationId, page)
+}
+
 defineExpose({ openFileDialog, closeDocument, rotate, fitWidth, undo, redo, clearAnnotations, saveProject, exportPdf, printPdf, getDocumentContext })
 
 watch(() => store.scale, () => void refreshPageFlow(true))
@@ -1742,6 +1847,7 @@ onMounted(() => {
   window.addEventListener('beforeunload', handleBeforeUnload)
   document.addEventListener('selectionchange', handleSelectionChange)
   window.addEventListener('funpdf:open-cached-file', handleOpenCachedFile)
+  window.addEventListener('funpdf:focus-annotation', handleFocusAnnotation)
 })
 
 onBeforeUnmount(() => {
@@ -1749,6 +1855,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
   document.removeEventListener('selectionchange', handleSelectionChange)
   window.removeEventListener('funpdf:open-cached-file', handleOpenCachedFile)
+  window.removeEventListener('funpdf:focus-annotation', handleFocusAnnotation)
   openTabs.value.forEach(stopAutosave)
   pageObserver?.disconnect()
   if (scrollFrame) cancelAnimationFrame(scrollFrame)
@@ -1845,15 +1952,37 @@ onBeforeUnmount(() => {
           </div>
 
           <template v-for="marker in noteMarkers(layout.pageNumber)" :key="marker.annotation.id">
+            <svg
+              v-if="marker.annotation.quoteRects?.length"
+              class="note-connector"
+              :class="{ 'translation-connector': marker.isTranslation, active: focusedAnnotationId === marker.annotation.id }"
+              :style="{ left: '0px', top: '0px', width: `${layout.width + 76}px`, height: `${layout.height}px` }"
+              aria-hidden="true"
+            >
+              <line
+                :x1="marker.connectorX1"
+                :y1="marker.connectorY1"
+                :x2="marker.connectorX2"
+                :y2="marker.connectorY2"
+              />
+            </svg>
+            <span
+              v-if="marker.annotation.quoteRects?.length"
+              class="text-anchor"
+              :class="{ 'translation-anchor': marker.isTranslation, active: focusedAnnotationId === marker.annotation.id }"
+              :style="{ left: `${marker.point.x}px`, top: `${marker.point.y}px` }"
+              aria-hidden="true"
+            ></span>
             <button
               class="note-marker"
-              :class="{ 'translation-marker': marker.isTranslation }"
-              :style="{ left: `${marker.point.x}px`, top: `${marker.point.y}px`, backgroundColor: marker.isTranslation ? '#eeeeee' : marker.annotation.color, borderColor: marker.isTranslation ? '#c9c9c9' : marker.annotation.color, color: marker.isTranslation ? '#4f555b' : '#ffffff' }"
-              title="打开便签"
+              :class="{ 'translation-marker': marker.isTranslation, 'rail-marker': marker.annotation.quoteRects?.length, focused: focusedAnnotationId === marker.annotation.id }"
+              :style="marker.annotation.quoteRects?.length ? { left: `${marker.railLeft + marker.stackOffset * 4}px`, top: `${marker.railTop}px`, backgroundColor: marker.isTranslation ? '#f4f8fb' : '#fff8db', borderColor: marker.isTranslation ? '#9fc4dc' : marker.annotation.color, color: marker.isTranslation ? '#315b72' : '#7a5416' } : { left: `${marker.point.x}px`, top: `${marker.point.y}px`, backgroundColor: marker.isTranslation ? '#eeeeee' : marker.annotation.color, borderColor: marker.isTranslation ? '#c9c9c9' : marker.annotation.color, color: marker.isTranslation ? '#4f555b' : '#ffffff' }"
+              :title="marker.isTranslation ? 'Open saved translation' : 'Open note'"
               @pointerdown.stop.prevent="startMarkerDrag($event, layout.pageNumber, marker.annotation)"
               @pointermove.stop.prevent="moveMarkerDrag($event, layout.pageNumber)"
               @pointerup.stop.prevent="endMarkerDrag($event, layout.pageNumber, marker.annotation)"
               @pointercancel.stop.prevent="endMarkerDrag($event, layout.pageNumber, marker.annotation)"
+              @click.stop.prevent="marker.annotation.quoteRects?.length && openNoteEditor(layout.pageNumber, marker.annotation.point, marker.point, marker.annotation)"
             >{{ marker.label }}</button>
           </template>
 
@@ -1931,12 +2060,6 @@ onBeforeUnmount(() => {
     </div>
 
     <div v-if="store.statusMessage" class="status-message">{{ store.statusMessage }}</div>
-    <footer v-if="store.totalPages > 0" class="page-footer">
-      <button :disabled="store.currentPage <= 1" title="上一页" @click="store.currentPage--"><i class="fa-solid fa-chevron-left"></i></button>
-      <input v-model.number="store.currentPage" type="number" :min="1" :max="store.totalPages" aria-label="当前页码" />
-      <span>/ {{ store.totalPages }}</span>
-      <button :disabled="store.currentPage >= store.totalPages" title="下一页" @click="store.currentPage++"><i class="fa-solid fa-chevron-right"></i></button>
-    </footer>
   </section>
 </template>
 
@@ -1950,9 +2073,9 @@ onBeforeUnmount(() => {
 .document-tab em, .close-tab { width: 18px; height: 18px; flex: 0 0 18px; display: grid; place-items: center; border-radius: 5px; font-style: normal; font-size: 11px; }
 .close-tab:hover { background: #d9d9d9; color: #22272c; }
 .hidden-input { display: none; }
-.page-stage { flex: 1; min-height: 0; overflow: auto; position: relative; padding: 28px 42px 84px; scroll-behavior: auto; }
+.page-stage { flex: 1; min-height: 0; overflow: auto; position: relative; padding: 28px 118px 40px 42px; scroll-behavior: auto; }
 .page-flow { width: max-content; min-width: 100%; display: flex; flex-direction: column; align-items: center; gap: 16px; }
-.page-shell { position: relative; flex: 0 0 auto; overflow: hidden; background: white; box-shadow: 0 2px 9px rgb(0 0 0 / 12%), 0 12px 26px rgb(0 0 0 / 8%); }
+.page-shell { position: relative; flex: 0 0 auto; overflow: visible; background: white; box-shadow: 0 2px 9px rgb(0 0 0 / 12%), 0 12px 26px rgb(0 0 0 / 8%); }
 .page-shell.current { outline: 1px solid rgb(85 90 96 / 22%); }
 .pdf-canvas { display: block; background: white; }
 .text-layer { position: absolute; inset: 0; z-index: 1; overflow: clip; line-height: 1; letter-spacing: normal; word-spacing: normal; text-align: initial; transform-origin: 0 0; -webkit-text-size-adjust: none; text-size-adjust: none; pointer-events: none; user-select: none; --min-font-size: 1; --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size)); --min-font-size-inv: calc(1 / var(--min-font-size)); }
@@ -1971,11 +2094,25 @@ onBeforeUnmount(() => {
 .page-shell[data-active-tool='cursor'] .pdf-link { pointer-events: auto; cursor: pointer; }
 .page-shell[data-active-tool='cursor'] .pdf-link:hover { outline: 1px solid rgb(75 85 99 / 35%); background: rgb(120 130 140 / 8%); }
 .pdf-link:focus-visible { outline: 2px solid #555b62; outline-offset: 1px; }
-.note-marker { position: absolute; z-index: 4; width: 22px; height: 22px; padding: 0; transform: translate(-50%, -50%); border: 1px solid transparent; border-radius: 50%; color: white; font: 700 12px/20px sans-serif; box-shadow: 0 1px 3px rgb(0 0 0 / 22%); pointer-events: none; }
+.note-connector { position: absolute; z-index: 3; overflow: visible; pointer-events: none; }
+.note-connector line { stroke: #b7791f; stroke-width: 1.8; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.note-connector.translation-connector line { stroke: #2563eb; }
+.note-connector.active line { stroke-width: 2.6; stroke-dasharray: none; }
+.text-anchor { position: absolute; z-index: 4; width: 10px; height: 10px; transform: translate(-50%, -50%); border: 2px solid #b7791f; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 0 4px rgb(245 158 11 / 22%); pointer-events: none; }
+.text-anchor.translation-anchor { border-color: #1d4ed8; background: #3b82f6; box-shadow: 0 0 0 4px rgb(37 99 235 / 22%); }
+.text-anchor.active { box-shadow: 0 0 0 6px rgb(245 158 11 / 34%), 0 0 0 12px rgb(245 158 11 / 14%); }
+.text-anchor.translation-anchor.active { box-shadow: 0 0 0 6px rgb(37 99 235 / 34%), 0 0 0 12px rgb(37 99 235 / 14%); }
+.note-marker { position: absolute; z-index: 5; width: 22px; height: 22px; padding: 0; transform: translate(-50%, -50%); border: 1px solid transparent; border-radius: 50%; color: white; font: 700 12px/20px sans-serif; box-shadow: 0 1px 3px rgb(0 0 0 / 22%); pointer-events: none; }
+.note-marker::before { content: ""; position: absolute; inset: 2px; border-radius: 6px; border: 1px solid rgb(255 255 255 / 70%); pointer-events: none; }
 .note-marker.translation-marker { width: 38px; height: 22px; border-radius: 5px; transform: translate(-50%, -50%); display: inline-grid; place-items: center; font: 700 13px/20px sans-serif; letter-spacing: 0; }
+.note-marker.rail-marker { width: 30px; height: 28px; transform: translateY(0); border-radius: 9px; background: #f59e0b !important; border-color: #b7791f !important; color: #fff7ed !important; font: 800 12px/26px sans-serif; box-shadow: 0 4px 12px rgb(120 75 15 / 26%); }
+.note-marker.rail-marker.translation-marker { width: 30px; height: 28px; transform: translateY(0); border-radius: 9px; background: #2563eb !important; border-color: #1d4ed8 !important; color: #eff6ff !important; font: 800 12px/26px sans-serif; box-shadow: 0 4px 12px rgb(29 78 216 / 26%); }
+.note-marker.focused { outline: 3px solid rgb(245 158 11 / 34%); outline-offset: 3px; }
+.note-marker.translation-marker.focused { outline-color: rgb(37 99 235 / 34%); }
 .page-shell[data-active-tool='cursor'] .note-marker { pointer-events: auto; cursor: pointer; }
-.page-shell[data-active-tool='cursor'] .note-marker.translation-marker { cursor: grab; }
-.page-shell[data-active-tool='cursor'] .note-marker.translation-marker:active { cursor: grabbing; }
+.page-shell[data-active-tool='cursor'] .note-marker.translation-marker { cursor: pointer; }
+.page-shell[data-active-tool='cursor'] .note-marker:not(.rail-marker).translation-marker { cursor: grab; }
+.page-shell[data-active-tool='cursor'] .note-marker:not(.rail-marker).translation-marker:active { cursor: grabbing; }
 .selection-toolbar { position: absolute; z-index: 6; transform: translateX(-50%); height: 36px; display: flex; align-items: center; padding: 3px; border: 1px solid #c8c8c8; border-radius: 7px; background: rgb(250 250 250 / 98%); box-shadow: 0 5px 16px rgb(0 0 0 / 18%); }
 .selection-toolbar button { height: 28px; padding: 0 9px; display: flex; align-items: center; gap: 6px; border: 0; border-radius: 5px; background: transparent; color: #3f4449; cursor: pointer; font-size: 12px; white-space: nowrap; }
 .selection-toolbar button:hover { background: #e8e8e8; }
@@ -2013,11 +2150,5 @@ onBeforeUnmount(() => {
 .drop-overlay { position: absolute; inset: 18px; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; border: 2px dashed #85898e; border-radius: 16px; background: rgb(247 247 247 / 94%); color: #44494f; font-size: 18px; pointer-events: none; }
 .loading { position: fixed; left: 50%; top: 82px; transform: translateX(-50%); z-index: 8; background: rgb(255 255 255 / 94%); border: 1px solid #d8d8d8; border-radius: 8px; padding: 9px 13px; font-size: 12px; color: #666b70; box-shadow: 0 3px 12px rgb(0 0 0 / 8%); display: flex; gap: 8px; align-items: center; }
 .status-message { position: absolute; left: 50%; bottom: 70px; z-index: 15; transform: translateX(-50%); padding: 9px 14px; border-radius: 8px; background: rgb(55 58 62 / 94%); color: white; font-size: 12px; }
-.page-footer { position: absolute; left: 50%; bottom: 16px; z-index: 12; transform: translateX(-50%); height: 40px; padding: 0 8px; border: 1px solid #d3d3d3; background: rgb(250 250 250 / 96%); box-shadow: 0 4px 16px rgb(0 0 0 / 10%); border-radius: 8px; display: flex; align-items: center; gap: 5px; }
-.page-footer button { width: 30px; height: 30px; border: 0; background: transparent; border-radius: 6px; cursor: pointer; color: #5f6469; }
-.page-footer button:hover:not(:disabled) { background: #e8e8e8; }
-.page-footer button:disabled { opacity: 0.35; cursor: default; }
-.page-footer input { width: 44px; height: 28px; border-radius: 5px; border: 1px solid #d7d7d7; background: white; text-align: center; color: #3f4449; outline: none; }
-.page-footer span { font-size: 12px; color: #777c81; padding-right: 4px; }
-@media (max-width: 720px) { .page-stage { padding: 20px 18px 76px; } .page-flow { gap: 12px; } }
+@media (max-width: 720px) { .page-stage { padding: 20px 74px 38px 18px; } .page-flow { gap: 12px; } }
 </style>

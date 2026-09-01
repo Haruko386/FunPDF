@@ -15,9 +15,7 @@ const items: SidebarItem[] = [
   { id: 'albums', label: '项目', icon: 'fa-regular fa-folder-open' },
   { id: 'pages', label: '页面', icon: 'fa-regular fa-file-lines' },
   { id: 'annotations', label: '标注', icon: 'fa-regular fa-comment-dots' },
-  { id: 'outline', label: '目录', icon: 'fa-solid fa-list' },
   { id: 'translation', label: '翻译', icon: 'fa-solid fa-language' },
-  { id: 'references', label: '参考文献', icon: 'fa-solid fa-link' },
   { id: 'ai', label: 'AI', icon: 'fa-solid fa-wand-magic-sparkles' },
 ]
 const settingsItem: SidebarItem = { id: 'settings', label: '设置', icon: 'fa-solid fa-gear' }
@@ -93,6 +91,13 @@ function handleSidebarWheel(event: WheelEvent) {
   event.preventDefault()
   event.stopPropagation()
   content.scrollTop = nextTop
+}
+
+function focusAnnotation(annotationId: string, page: number) {
+  store.currentPage = page
+  window.dispatchEvent(new CustomEvent('funpdf:focus-annotation', {
+    detail: { annotationId, page },
+  }))
 }
 </script>
 
@@ -175,7 +180,7 @@ function handleSidebarWheel(event: WheelEvent) {
               v-for="comment in store.noteComments.filter(item => item.text)"
               :key="comment.id"
               class="comment-item"
-              @click="store.currentPage = comment.page"
+              @click="focusAnnotation(comment.id, comment.page)"
             >
               <span>第 {{ comment.page }} 页</span>
               <strong>{{ comment.text }}</strong>
@@ -189,7 +194,7 @@ function handleSidebarWheel(event: WheelEvent) {
                 v-for="translation in comment.translations ?? []"
                 :key="translation.id"
                 class="comment-item translation-item"
-                @click="store.currentPage = comment.page"
+                @click="focusAnnotation(comment.id, comment.page)"
               >
                 <span>第 {{ comment.page }} 页</span>
                 <strong>{{ translation.translatedText }}</strong>
@@ -200,16 +205,8 @@ function handleSidebarWheel(event: WheelEvent) {
           </template>
         </div>
 
-        <div v-else-if="store.activeSidebar === 'outline'" class="panel-content">
-          <div class="empty">当前版本暂未读取文档目录。</div>
-        </div>
-
         <div v-else-if="store.activeSidebar === 'translation' && store.featureFlags.translation" class="panel-content">
           <TranslationPanel />
-        </div>
-
-        <div v-else-if="store.activeSidebar === 'references'" class="panel-content">
-          <div class="empty">参考文献解析与跳转功能将在后续版本中提供。</div>
         </div>
 
         <div v-else-if="store.activeSidebar === 'ai' && store.featureFlags.aiChat" class="panel-content">
