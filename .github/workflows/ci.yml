@@ -19,6 +19,13 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
       - name: Format check
         run: |
           unformatted="$(git ls-files '*.go' -z | xargs -0 -r gofmt -l)"
@@ -26,6 +33,17 @@ jobs:
             echo "$unformatted"
             exit 1
           fi
+
+      - name: Build frontend for desktop embed
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Copy frontend assets for desktop embed
+        run: |
+          mkdir -p desktop/frontend
+          cp -R web/dist desktop/frontend/
 
       - name: Test
         run: go test -race -cover ./...
