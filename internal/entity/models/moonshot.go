@@ -23,7 +23,7 @@ func (m *MoonShotModel) Chat(ctx context.Context, modelCfg *ModelConfig, chatCfg
 		"messages": messages,
 	}
 	if chatCfg != nil {
-		implementDeepSeekChatConfig(chatCfg, reqBody)
+		implementMoonShotConfig(chatCfg, reqBody)
 	}
 
 	jsonData, err := json.Marshal(reqBody)
