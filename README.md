@@ -3,27 +3,17 @@
 </div>
 
 <p align="center">
-  <a href="./README.md"><img alt="README in English" src="https://img.shields.io/badge/English-DBEDFA"></a>
-  <a href="./external/README_zh.md"><img alt="README in Simplified Chinese" src="https://img.shields.io/badge/简体中文-DFE0E5"></a>
+  <a href="./README.md" style="text-decoration: none;"><img alt="README in English" src="https://img.shields.io/badge/English-DBEDFA" style="display: inline-block; vertical-align: middle;"></a>
+  <a href="./external/README_zh.md" style="text-decoration: none;"><img alt="README in Simplified Chinese" src="https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-DFE0E5" style="display: inline-block; vertical-align: middle;"></a>
 </p>
 
-<p align="center">
-<a href="https://github.com/haruko386/funpdf">
-    <img
-      height="21"
-      src="https://img.shields.io/badge/Vue-Golang-00ADD8?labelColor=41B883"
-      alt="stack"
-    >
-  </a>
-  <a href="https://github.com/haruko386/funpdf/releases/latest">
-        <img src="https://img.shields.io/badge/Latest%20release-v0.1.0-blue" alt="Latest Release">
-  </a>
-  <a href="https://github.com/haruko386/funpdf/blob/main/LICENSE">
-        <img height="21" src="https://img.shields.io/badge/License-GNU%20General%20Public--3.0-ffffff?labelColor=d4eaf7&color=2e6cc4" alt="license">
-  </a>
-</p>
 
----
+<div align="center">
+
+  [![Language](./external/badge/Vue-Golang-00ADD8.svg)](https://github.com/haruko386/funpdf)
+  [![Release](./external/badge/Latest%20release-blue.svg)](https://github.com/haruko386/funpdf/releases/latest)
+  [![Language](./external/badge/License-GNU%20General%20Public.svg)](https://github.com/haruko386/funpdf/blob/main/LICENSE)
+</div>
 
 <div align="center" style="margin-top:20px;margin-bottom:20px;">
   <img width="1200" alt="FunPDF-Banner" src="https://github.com/user-attachments/assets/bb015eea-50f6-4463-8e46-5dc9f82ce0e8" />
@@ -49,9 +39,6 @@
 
 FunPDF is a lightweight, self-hosted PDF reader and annotation prototype. It combines a Vue 3 web interface with a Go API and stores document metadata in MySQL. Uploaded PDFs and their editor state are kept in a local `Cache` directory.
 
-> [!NOTE]
-> FunPDF is still under active development. Translation, provider management, references, and some AI-related entries are placeholders or incomplete.
-
 <a id="get-started"></a>
 ## 🎮 Get Started
 
@@ -76,12 +63,41 @@ Open <http://localhost:5173>. The frontend proxies `/api` requests to the Go ser
 <a id="key-features"></a>
 ## 🌟 Key Features
 
-- Open and render local PDF files with PDF.js
-- Navigate, zoom, rotate, search, print, and export PDFs
-- Add drawing, highlight, underline, strikeout, and note annotations
-- Save PDFs and editor state to the local library
-- Organize saved files into albums
-- Self-host the API and MySQL with Docker Compose
+- PDF reading
+  - Open local `.pdf` files and editable `.funpdf` project files
+  - Render PDF pages with PDF.js, including text layers and clickable PDF links
+  - Navigate pages, zoom in/out, fit to width, rotate, drag-and-drop files, and keep multiple PDFs open in tabs
+  - Copy selected text and use the selection popup for common actions
+- Annotation and editing
+  - Draw freehand strokes, highlight text, add underline and strikeout marks, and erase annotations
+  - Add note annotations from the toolbar or selected text
+  - View note lists and saved translation snippets in the sidebar
+  - Undo, redo, clear annotations, and track unsaved editor state
+- Saving and export
+  - Save PDF source files, editor state, thumbnails, and revisions to the local library
+  - Autosave cached editor state for saved documents
+  - Export or print a flattened PDF with annotations applied
+  - Store editable project data in `.funpdf` format for later reopening
+- Library and album management
+  - Browse the public file library, reopen saved PDFs, rename files, and delete stored files
+  - Create, edit, and delete albums with generated or uploaded cover images
+  - Add files to albums, remove files from albums without deleting the source file, and inspect file memberships
+- Translation
+  - Configure Baidu, DeepL, Google, and Azure translator credentials
+  - Translate selected PDF text from the sidebar or selection popup
+  - Persist source/target language and provider-specific translation options locally
+  - Save translation results back onto note annotations
+- AI-assisted reading
+  - Configure AI providers and model lists from the sidebar
+  - Create per-PDF chat sessions and stream model responses with optional reasoning content
+  - Ask questions about the current PDF or a selected text quote
+  - Tune chat parameters such as temperature, top-p, max tokens, thinking, and effort
+  - Current backend chat/model-list implementation is wired for DeepSeek-compatible provider handling
+- Runtime and deployment
+  - Go API with Gin and GORM, backed by MySQL metadata storage
+  - Local `Cache` storage for uploaded PDFs, editor state, thumbnails, and recoverable delete flow
+  - Docker Compose setup for the backend API and MySQL
+  - Feature toggles for AI Chat, translation, and notes in the UI settings panel
 
 <a id="run-with-docker"></a>
 ## 🎬 Run with Docker
@@ -180,8 +196,6 @@ cd web && npm run build
 
 <a id="documentation"></a>
 ## 📖 Documentation
-
-- [简体中文 README](./external/README_zh.md)
 - [Current file API notes](./internal/development.md)
 
 <a id="contributing"></a>
