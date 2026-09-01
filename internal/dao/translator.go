@@ -46,7 +46,7 @@ func (d *TranslatorDAO) CreateTranslator(ctx context.Context, db *gorm.DB, trans
 	err := db.WithContext(ctx).Where("name = ?", translatorName).First(&existing).Error
 	if err == nil {
 		return nil, fmt.Errorf("translators with name %s already exists", translatorName)
-	}
+	} // FIXME: remove this `if` in some fix PR
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}

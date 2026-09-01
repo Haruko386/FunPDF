@@ -13,10 +13,19 @@ type Router struct {
 	providerHandler    *handler.ProviderHandler
 	modelHandler       *handler.ModelHandler
 	chatSessionHandler *handler.ChatSessionHandler
+	runtimeHandler     *handler.RuntimeHandler
 }
 
 // NewRouter create a new router
 func NewRouter(fileHandler *handler.FileHandler, albumHandler *handler.AlbumHandler, translatorHandler *handler.TranslatorHandler, providerHandler *handler.ProviderHandler, modelHandler *handler.ModelHandler, chatSessionHandler *handler.ChatSessionHandler) *Router {
+	return NewRouterWithRuntime(fileHandler, albumHandler, translatorHandler, providerHandler, modelHandler, chatSessionHandler, handler.NewRuntimeHandler(handler.RuntimeInfo{
+		Mode:     "server",
+		Database: "mysql",
+		CacheDir: "./Cache",
+	}))
+}
+
+func NewRouterWithRuntime(fileHandler *handler.FileHandler, albumHandler *handler.AlbumHandler, translatorHandler *handler.TranslatorHandler, providerHandler *handler.ProviderHandler, modelHandler *handler.ModelHandler, chatSessionHandler *handler.ChatSessionHandler, runtimeHandler *handler.RuntimeHandler) *Router {
 	return &Router{
 		fileHandler:        fileHandler,
 		albumHandler:       albumHandler,
@@ -24,6 +33,7 @@ func NewRouter(fileHandler *handler.FileHandler, albumHandler *handler.AlbumHand
 		providerHandler:    providerHandler,
 		modelHandler:       modelHandler,
 		chatSessionHandler: chatSessionHandler,
+		runtimeHandler:     runtimeHandler,
 	}
 }
 
@@ -31,6 +41,12 @@ func NewRouter(fileHandler *handler.FileHandler, albumHandler *handler.AlbumHand
 func (r *Router) Setup(e *gin.Engine) {
 	api := e.Group("/api")
 	{
+		runtime := api.Group("/runtime")
+		{
+			runtime.GET("/info", r.runtimeHandler.Info)
+			runtime.POST("/open-path", r.runtimeHandler.OpenPath)
+		}
+
 		file := api.Group("/files")
 		{
 			file.GET("", r.fileHandler.ListFiles)

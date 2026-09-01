@@ -14,8 +14,12 @@ type ChatSessionHandler struct {
 }
 
 func NewChatSessionHandler() *ChatSessionHandler {
+	return NewChatSessionHandlerWithService(service.NewChatSessionService())
+}
+
+func NewChatSessionHandlerWithService(chatSessionSvr *service.ChatSessionService) *ChatSessionHandler {
 	return &ChatSessionHandler{
-		chatSessionSvr: service.NewChatSessionService(),
+		chatSessionSvr: chatSessionSvr,
 	}
 }
 

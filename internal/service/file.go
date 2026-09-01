@@ -23,7 +23,11 @@ type FileService struct {
 }
 
 func NewFileService() *FileService {
-	return &FileService{fileDAO: dao.NewFileDAO(), cacheDir: "./Cache"}
+	return NewFileServiceWithCacheDir("./Cache")
+}
+
+func NewFileServiceWithCacheDir(cacheDir string) *FileService {
+	return &FileService{fileDAO: dao.NewFileDAO(), cacheDir: cacheDir}
 }
 
 // ListFiles List all files in local

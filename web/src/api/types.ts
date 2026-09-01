@@ -29,3 +29,11 @@ export interface ProviderModel extends BaseModel {
   name: string
   provider_name?: string
 }
+
+export interface RuntimeInfo {
+  mode: string
+  version: string
+  database: string
+  database_path?: string
+  cache_dir: string
+}
