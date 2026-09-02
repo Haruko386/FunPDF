@@ -177,7 +177,7 @@ function chooseTool(tool: ToolType) {
 
 .topbar-left { gap: 6px; }
 .topbar-right { justify-content: flex-end; gap: 6px; min-width: 0; }
-.toolstrip { gap: 2px; justify-content: center; }
+.toolstrip { gap: 2px; justify-content: center; min-width: 0; }
 
 .icon-button,
 .tool-button,
@@ -232,7 +232,8 @@ button:disabled { opacity: 0.35; cursor: default; }
 .width-picker { height: 30px; display: flex; align-items: center; gap: 4px; padding: 0 5px; color: #6d7176; }
 .width-picker select { width: 39px; border: 0; outline: none; background: transparent; color: #555a60; font-size: 12px; cursor: pointer; }
 
-.export-button { height: 34px; padding: 0 12px; border-radius: 7px; display: flex; align-items: center; gap: 7px; color: white; background: #4a4f55; font-size: 13px; }
+.export-button { height: 34px; flex: 0 0 auto; padding: 0 12px; border-radius: 7px; display: flex; align-items: center; justify-content: center; gap: 7px; color: white; background: #4a4f55; font-size: 13px; white-space: nowrap; }
+.export-button span { display: inline-block; white-space: nowrap; }
 .export-button:hover:not(:disabled) { background: #353a40; }
 .export-button:disabled { color: #898d92; background: #e2e2e2; }
 

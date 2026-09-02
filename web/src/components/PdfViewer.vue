@@ -654,7 +654,11 @@ async function setInitialFitWidth() {
   if (!pdfDocument.value || !stageRef.value) return
   const page = await pdfDocument.value.getPage(1)
   const viewport = page.getViewport({ scale: 1, rotation: rotation.value })
-  const available = Math.max(stageRef.value.clientWidth - 84, 260)
+  const stageStyle = window.getComputedStyle(stageRef.value)
+  const horizontalPadding =
+    Number.parseFloat(stageStyle.paddingLeft || '0') +
+    Number.parseFloat(stageStyle.paddingRight || '0')
+  const available = Math.max(stageRef.value.clientWidth - horizontalPadding, 260)
   store.scale = Math.min(Math.max(available / viewport.width, 0.4), 3)
 }
 
@@ -1579,6 +1583,15 @@ function handleStageScroll() {
   })
 }
 
+function handleStageWheel(event: WheelEvent) {
+  if (!(event.ctrlKey || event.metaKey)) return
+  event.preventDefault()
+  event.stopPropagation()
+  if (!store.totalPages) return
+  if (event.deltaY < 0) store.zoomIn()
+  else if (event.deltaY > 0) store.zoomOut()
+}
+
 function scrollToPage(page: number, smooth = true) {
   const stage = stageRef.value
   const element = pageElements.get(page)
@@ -1904,6 +1917,7 @@ onBeforeUnmount(() => {
     <div
       ref="stageRef"
       class="page-stage"
+      @wheel="handleStageWheel"
       @scroll.passive="handleStageScroll"
       @dragenter.prevent="dragActive = true"
       @dragover="handleDragOver"

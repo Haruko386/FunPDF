@@ -5,7 +5,7 @@ import type { SidebarItem } from '@/types/pdf'
 import ProjectPanel from '@/components/ProjectPanel.vue'
 import ProviderPanel from '@/components/ProviderPanel.vue'
 import TranslationPanel from '@/components/TranslationPanel.vue'
-import { getRuntimeInfo, openRuntimePath } from '@/api/runtime'
+import { getRuntimeInfo, openRuntimePath, selectRuntimeCacheDir } from '@/api/runtime'
 import type { RuntimeInfo } from '@/api/types'
 
 const store = useReaderStore()
@@ -15,6 +15,7 @@ const resizing = ref(false)
 const runtimeInfo = ref<RuntimeInfo | null>(null)
 const runtimeInfoError = ref('')
 const runtimePathMessage = ref('')
+const changingCacheDir = ref(false)
 
 const items: SidebarItem[] = [
   { id: 'albums', label: '项目', icon: 'fa-regular fa-folder-open' },
@@ -129,6 +130,30 @@ async function openPath(path?: string) {
     } catch {
       runtimePathMessage.value = 'Open-path API is not available yet.'
     }
+  }
+}
+
+async function changeCacheDir() {
+  if (changingCacheDir.value) return
+  changingCacheDir.value = true
+  runtimePathMessage.value = ''
+  runtimeInfoError.value = ''
+
+  try {
+    const result = await selectRuntimeCacheDir()
+    if ('mode' in result) {
+      runtimeInfo.value = result
+    } else if (runtimeInfo.value) {
+      runtimeInfo.value = { ...runtimeInfo.value, cache_dir: result.cache_dir }
+    } else {
+      runtimeInfo.value = await getRuntimeInfo()
+    }
+    runtimePathMessage.value = 'Cache location updated.'
+    window.dispatchEvent(new Event('funpdf:files-changed'))
+  } catch (error) {
+    runtimeInfoError.value = error instanceof Error ? error.message : 'Failed to change cache location'
+  } finally {
+    changingCacheDir.value = false
   }
 }
 
@@ -279,19 +304,17 @@ onMounted(() => {
                 <div><span>Mode</span><code>{{ runtimeInfo.mode }}</code></div>
                 <div><span>Version</span><code>{{ runtimeInfo.version }}</code></div>
                 <div><span>Database</span><code>{{ runtimeInfo.database }}</code></div>
-                <div v-if="runtimeInfo.database_path" class="runtime-path-row">
-                  <span>DB Path</span>
-                  <code>{{ runtimeInfo.database_path }}</code>
-                  <button class="runtime-open" @click="openPath(runtimeInfo.database_path)">Open</button>
-                </div>
                 <div class="runtime-path-row">
                   <span>Cache</span>
                   <code>{{ runtimeInfo.cache_dir }}</code>
-                  <button class="runtime-open" @click="openPath(runtimeInfo.cache_dir)">Open</button>
+                  <button class="runtime-open" :disabled="changingCacheDir" title="选择新的缓存目录" @click="changeCacheDir">
+                    {{ changingCacheDir ? '...' : '更改' }}
+                  </button>
+                  <button class="runtime-open" title="在资源管理器中打开当前缓存目录" @click="openPath(runtimeInfo.cache_dir)">Open</button>
                 </div>
               </div>
               <p v-if="runtimePathMessage" class="runtime-message">{{ runtimePathMessage }}</p>
-              <p v-else-if="!runtimeInfo && runtimeInfoError" class="runtime-error">{{ runtimeInfoError }}</p>
+              <p v-if="runtimeInfoError" class="runtime-error">{{ runtimeInfoError }}</p>
               <p v-else-if="!runtimeInfo" class="runtime-loading">Loading runtime info...</p>
             </article>
           </section>
@@ -373,10 +396,11 @@ onMounted(() => {
 .runtime-list div { display: grid; gap: 3px; }
 .runtime-list span { color: #858b92; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
 .runtime-list code { display: block; overflow-wrap: anywhere; border-radius: 5px; padding: 6px; background: #ededed; color: #34383d; font-size: 11px; line-height: 1.45; }
-.runtime-path-row { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+.runtime-path-row { grid-template-columns: minmax(0, 1fr) auto auto; align-items: end; }
 .runtime-path-row span { grid-column: 1 / -1; }
 .runtime-open { height: 28px; margin-left: 6px; padding: 0 9px; border: 1px solid #d8d8d8; border-radius: 6px; background: #eeeeee; color: #454a50; font-size: 11px; cursor: pointer; }
 .runtime-open:hover { background: #e5e5e5; }
+.runtime-open:disabled { opacity: .55; cursor: default; }
 .runtime-error, .runtime-loading, .runtime-message { margin: 0; color: #858b92; font-size: 11px; line-height: 1.45; }
 .switch { width: 38px; height: 22px; padding: 2px; border: 0; border-radius: 999px; background: #cfd3d7; cursor: pointer; }
 .switch span { display: block; width: 18px; height: 18px; border-radius: 50%; background: white; box-shadow: 0 1px 3px rgb(0 0 0 / 18%); transition: transform .15s ease; }
