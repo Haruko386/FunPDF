@@ -1,15 +1,20 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useReaderStore, type ReaderFeatureKey } from '@/stores/reader'
 import type { SidebarItem } from '@/types/pdf'
 import ProjectPanel from '@/components/ProjectPanel.vue'
 import ProviderPanel from '@/components/ProviderPanel.vue'
 import TranslationPanel from '@/components/TranslationPanel.vue'
+import { getRuntimeInfo, openRuntimePath } from '@/api/runtime'
+import type { RuntimeInfo } from '@/api/types'
 
 const store = useReaderStore()
 const SIDEBAR_WIDTH_KEY = 'funpdf.sidebarPanelWidth'
 const sidebarWidth = ref(initialSidebarWidth())
 const resizing = ref(false)
+const runtimeInfo = ref<RuntimeInfo | null>(null)
+const runtimeInfoError = ref('')
+const runtimePathMessage = ref('')
 
 const items: SidebarItem[] = [
   { id: 'albums', label: '项目', icon: 'fa-regular fa-folder-open' },
@@ -99,6 +104,37 @@ function focusAnnotation(annotationId: string, page: number) {
     detail: { annotationId, page },
   }))
 }
+
+async function loadRuntimeInfo() {
+  try {
+    runtimeInfo.value = await getRuntimeInfo()
+    runtimeInfoError.value = ''
+    runtimePathMessage.value = ''
+  } catch (error) {
+    runtimeInfoError.value = error instanceof Error ? error.message : 'Failed to load runtime info'
+  }
+}
+
+async function openPath(path?: string) {
+  if (!path) return
+  runtimePathMessage.value = ''
+
+  try {
+    await openRuntimePath(path)
+    runtimePathMessage.value = 'Opened in Explorer.'
+  } catch {
+    try {
+      await navigator.clipboard.writeText(path)
+      runtimePathMessage.value = 'Path copied. Open-path API is not available yet.'
+    } catch {
+      runtimePathMessage.value = 'Open-path API is not available yet.'
+    }
+  }
+}
+
+onMounted(() => {
+  void loadRuntimeInfo()
+})
 </script>
 
 <template>
@@ -231,6 +267,33 @@ function focusAnnotation(annotationId: string, page: number) {
                 <span></span>
               </button>
             </article>
+            <article class="runtime-card">
+              <div class="runtime-title">
+                <i class="fa-solid fa-circle-info"></i>
+                <strong>Runtime</strong>
+                <button class="runtime-refresh" title="Refresh" @click="loadRuntimeInfo">
+                  <i class="fa-solid fa-rotate-right"></i>
+                </button>
+              </div>
+              <div v-if="runtimeInfo" class="runtime-list">
+                <div><span>Mode</span><code>{{ runtimeInfo.mode }}</code></div>
+                <div><span>Version</span><code>{{ runtimeInfo.version }}</code></div>
+                <div><span>Database</span><code>{{ runtimeInfo.database }}</code></div>
+                <div v-if="runtimeInfo.database_path" class="runtime-path-row">
+                  <span>DB Path</span>
+                  <code>{{ runtimeInfo.database_path }}</code>
+                  <button class="runtime-open" @click="openPath(runtimeInfo.database_path)">Open</button>
+                </div>
+                <div class="runtime-path-row">
+                  <span>Cache</span>
+                  <code>{{ runtimeInfo.cache_dir }}</code>
+                  <button class="runtime-open" @click="openPath(runtimeInfo.cache_dir)">Open</button>
+                </div>
+              </div>
+              <p v-if="runtimePathMessage" class="runtime-message">{{ runtimePathMessage }}</p>
+              <p v-else-if="!runtimeInfo && runtimeInfoError" class="runtime-error">{{ runtimeInfoError }}</p>
+              <p v-else-if="!runtimeInfo" class="runtime-loading">Loading runtime info...</p>
+            </article>
           </section>
         </div>
 
@@ -301,6 +364,20 @@ function focusAnnotation(annotationId: string, page: number) {
 .setting-row > i { color: #656b72; text-align: center; }
 .setting-row strong { display: block; color: #34383d; font-size: 13px; }
 .setting-row p { margin: 4px 0 0; color: #858b92; font-size: 11px; line-height: 1.45; }
+.runtime-card { display: grid; gap: 10px; padding: 12px; border: 1px solid #e2e2e2; border-radius: 9px; background: #f7f7f7; color: #555b62; font-size: 13px; }
+.runtime-title { display: flex; align-items: center; gap: 8px; color: #34383d; font-size: 13px; }
+.runtime-title i { color: #656b72; }
+.runtime-refresh { margin-left: auto; border: 0; background: transparent; color: #656b72; cursor: pointer; }
+.runtime-refresh:hover { color: #34383d; }
+.runtime-list { display: grid; gap: 7px; }
+.runtime-list div { display: grid; gap: 3px; }
+.runtime-list span { color: #858b92; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.runtime-list code { display: block; overflow-wrap: anywhere; border-radius: 5px; padding: 6px; background: #ededed; color: #34383d; font-size: 11px; line-height: 1.45; }
+.runtime-path-row { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+.runtime-path-row span { grid-column: 1 / -1; }
+.runtime-open { height: 28px; margin-left: 6px; padding: 0 9px; border: 1px solid #d8d8d8; border-radius: 6px; background: #eeeeee; color: #454a50; font-size: 11px; cursor: pointer; }
+.runtime-open:hover { background: #e5e5e5; }
+.runtime-error, .runtime-loading, .runtime-message { margin: 0; color: #858b92; font-size: 11px; line-height: 1.45; }
 .switch { width: 38px; height: 22px; padding: 2px; border: 0; border-radius: 999px; background: #cfd3d7; cursor: pointer; }
 .switch span { display: block; width: 18px; height: 18px; border-radius: 50%; background: white; box-shadow: 0 1px 3px rgb(0 0 0 / 18%); transition: transform .15s ease; }
 .switch.enabled { background: #4f8f5d; }

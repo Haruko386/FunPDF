@@ -15,7 +15,14 @@ type FileHandler struct {
 }
 
 func NewFileHandler() *FileHandler {
-	return &FileHandler{fileSvr: service.NewFileService()}
+	return NewFileHandlerWithService(service.NewFileService())
+}
+
+func NewFileHandlerWithService(fileSvr *service.FileService) *FileHandler {
+	if fileSvr == nil {
+		return &FileHandler{fileSvr: service.NewFileService()}
+	}
+	return &FileHandler{fileSvr: fileSvr}
 }
 
 // ListFiles list all files

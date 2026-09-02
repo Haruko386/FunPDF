@@ -17,10 +17,6 @@ package main
 import (
 	"FunPDF/internal"
 	"FunPDF/internal/common"
-	"FunPDF/internal/dao"
-	"FunPDF/internal/engine"
-	"FunPDF/internal/entity"
-	"FunPDF/internal/handler"
 	"context"
 	"errors"
 	"log"
@@ -29,50 +25,22 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	fileHandler := handler.NewFileHandler()
-	albumHandler := handler.NewAlbumHandler()
-	translatorHandler := handler.NewTranslatorHandler()
-	providerHandler := handler.NewProviderHandler()
-	modelHandler := handler.NewModelHandler()
-	chatSessionHandler := handler.NewChatSessionHandler()
+	err := internal.InitDatabaseFromEnv()
+	if err != nil {
+		return
+	}
 
-	r := gin.Default()
-	router := internal.NewRouter(fileHandler, albumHandler, translatorHandler, providerHandler, modelHandler, chatSessionHandler)
-	router.Setup(r)
-
-	dsn := os.Getenv("FUNPDF_MYSQL_DSN")
-	if dsn == "" {
-		dsn = "root:password@(127.0.0.1:3306)/funpdf?charset=utf8mb4&parseTime=True&loc=Local"
-	}
-	if err := dao.InitMysql(dsn); err != nil {
-		log.Fatalf("initialize MySQL: %v", err)
-	}
-	if err := dao.DB.AutoMigrate(&entity.File{}, &entity.Album{}, &entity.AlbumFile{}, &entity.Translator{}, &entity.Model{}, &entity.Provider{}, &entity.ProviderModel{}, &entity.ChatSession{}, &entity.Dialog{}); err != nil {
-		log.Fatalf("migrate file table: %v", err)
-	}
+	r := internal.NewHTTPHandler()
 
 	common.Banner()
 	log.Printf("FunPDF %s", common.GetVersion())
 
-	done := make(chan struct{})
-
-	ticker := time.NewTicker(time.Minute * 30)
-	defer ticker.Stop()
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				engine.PDFText.Clear()
-			case <-done:
-				return
-			}
-		}
-	}()
+	cleanerCtx, cleanerCtxCancel := context.WithCancel(context.Background())
+	defer cleanerCtxCancel()
+	internal.StartPDFTextCleaner(cleanerCtx)
 
 	addr := os.Getenv("FUNPDF_ADDR")
 	if addr == "" {
@@ -90,8 +58,8 @@ func main() {
 	defer stop()
 	<-ctx.Done()
 
+	cleanerCtxCancel()
 	log.Println("shutting down...")
-	close(done)
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

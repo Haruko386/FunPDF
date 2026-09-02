@@ -1,15 +1,15 @@
 package engine
 
 import (
+	"FunPDF/conf"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 )
 
 func loadTranslatorConfig(name string) (json.RawMessage, error) {
-	data, err := os.ReadFile(fmt.Sprintf("conf/translators/%s.json", name))
+	data, err := conf.ReadTranslatorConfig(name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
