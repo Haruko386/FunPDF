@@ -51,7 +51,7 @@ func (d *AlbumDAO) ListAlbumFiles(ctx context.Context, db *gorm.DB, albumID stri
 // UpdateAlbum update the album
 func (d *AlbumDAO) UpdateAlbum(ctx context.Context, db *gorm.DB, req *dto.UpdateAlbumRequest) (int64, error) {
 	result := db.WithContext(ctx).Model(&entity.Album{}).
-		First(&entity.Album{}, "id = ?", req.ID).
+		Where("albums.id = ?", req.ID).
 		Updates(entity.Album{
 			Name:        req.Name,
 			Thumbnail:   req.Thumbnail,

@@ -29,6 +29,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -136,8 +137,12 @@ func startBackend(ctx context.Context) (*http.Server, string, error) {
 	}
 
 	httpSvr := &http.Server{
-		Addr:    backendAddr,
-		Handler: r,
+		Addr:              backendAddr,
+		Handler:           r,
+		ReadTimeout:       5 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      5 * time.Second,
+		IdleTimeout:       10 * time.Second,
 	}
 
 	go func() {

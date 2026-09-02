@@ -77,7 +77,7 @@ func (h *RuntimeHandler) SelectCacheDir(c *gin.Context) {
 	if h.info.Mode != "desktop" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"code": http.StatusBadRequest,
-			"msg":  "更改缓存目录仅在桌面版中支持",
+			"msg":  "Only support desktop version",
 		})
 		return
 	}

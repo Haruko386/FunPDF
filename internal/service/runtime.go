@@ -17,8 +17,9 @@ import (
 )
 
 var (
-	cacheDirMu sync.RWMutex
-	cacheDir   = "./Cache"
+	cacheDirMu       sync.RWMutex
+	cacheMigrationMu sync.RWMutex
+	cacheDir         = "./Cache"
 )
 
 // CurrentCacheDir returns the effective cache dir shared by file/chat services.
@@ -93,9 +94,17 @@ func (s *RuntimeService) ChangeCacheDir(ctx context.Context, newDir string) (str
 	}
 	newDir = abs
 
-	oldDir := CurrentCacheDir()
+	cacheMigrationMu.Lock()
+	defer cacheMigrationMu.Unlock()
+
+	oldDir, err := filepath.Abs(CurrentCacheDir())
+	if err != nil {
+		return "", err
+	}
+
 	cleanOld := filepath.Clean(oldDir)
 	cleanNew := filepath.Clean(newDir)
+
 	if strings.EqualFold(cleanOld, cleanNew) {
 		return newDir, nil
 	}

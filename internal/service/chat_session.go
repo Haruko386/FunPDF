@@ -89,9 +89,11 @@ func (s *ChatSessionService) SendMessages(ctx context.Context, providerID, sessi
 
 	documentText, ok := engine.PDFText.Get(session.FileID)
 	if !ok {
+		cacheMigrationMu.RLock()
 		pdfPath := filepath.Join(CurrentCacheDir(), fileRecord.FileStorageKey, "source.pdf")
 
 		text, err := ExtractPDFText(pdfPath)
+		cacheMigrationMu.RUnlock()
 		if err != nil {
 			return nil, err
 		}

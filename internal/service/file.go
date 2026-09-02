@@ -39,6 +39,9 @@ func (s *FileService) GetFile(ctx context.Context, fileID string) (string, error
 		return "", err
 	}
 
+	cacheMigrationMu.RLock()
+	defer cacheMigrationMu.RUnlock()
+
 	filePath := filepath.Join(CurrentCacheDir(), fileRecord.FileStorageKey, "source.pdf")
 	go func(fileID, path string) {
 		if _, ok := engine.PDFText.Get(fileID); ok {
@@ -62,6 +65,9 @@ func (s *FileService) GetFileState(ctx context.Context, fileID string) (json.Raw
 	if err != nil {
 		return nil, err
 	}
+
+	cacheMigrationMu.RLock()
+	defer cacheMigrationMu.RUnlock()
 
 	filePath := filepath.Join(CurrentCacheDir(), fileRecord.FileStorageKey, "editor-state.json")
 	file, err := os.Open(filePath)
@@ -102,6 +108,10 @@ func (s *FileService) SaveFile(ctx context.Context, fileID string, req *dto.Save
 	if projectDir == "" {
 		return false, fmt.Errorf("file location is empty")
 	}
+
+	cacheMigrationMu.RLock()
+	defer cacheMigrationMu.RUnlock()
+
 	stateDir := filepath.Join(CurrentCacheDir(), projectDir)
 	statePath := filepath.Join(stateDir, "editor-state.json")
 	bakPath := statePath + ".bak"
@@ -177,6 +187,9 @@ func (s *FileService) SaveFile(ctx context.Context, fileID string, req *dto.Save
 // UploadFile upload the file to local for first time save
 func (s *FileService) UploadFile(ctx context.Context, req *dto.UploadFileRequest, source io.Reader) (_ *entity.File, resultErr error) {
 	fileID := common.GenerateUUIDv7()
+
+	cacheMigrationMu.RLock()
+	defer cacheMigrationMu.RUnlock()
 
 	if err := os.MkdirAll(CurrentCacheDir(), 0700); err != nil {
 		return nil, err
@@ -280,6 +293,10 @@ func (s *FileService) DeleteFile(ctx context.Context, fileID string) (int64, err
 	if projectDir == "" {
 		return 0, fmt.Errorf("file location is empty")
 	}
+
+	cacheMigrationMu.RLock()
+	defer cacheMigrationMu.RUnlock()
+
 	srcDir := filepath.Join(CurrentCacheDir(), projectDir)
 
 	trashDir := filepath.Join(CurrentCacheDir(), ".trash")
