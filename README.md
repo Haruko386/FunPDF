@@ -25,6 +25,7 @@
 - [💡 What is FunPDF?](#what-is-funpdf)
 - [🎮 Get Started](#get-started)
 - [🌟 Key Features](#key-features)
+- [🖥️ Desktop App](#desktop-app)
 - [🎬 Run with Docker](#run-with-docker)
 - [🔧 Configurations](#configurations)
 - [🔨 Build a Docker Image](#build-a-docker-image)
@@ -37,19 +38,21 @@
 <a id="what-is-funpdf"></a>
 ## 💡 What is FunPDF?
 
-FunPDF is a lightweight, self-hosted PDF reader and annotation prototype. It combines a Vue 3 web interface with a Go API and stores document metadata in MySQL. Uploaded PDFs and their editor state are kept in a local `Cache` directory.
+FunPDF is a lightweight PDF reader and annotation prototype. It combines a Vue 3 interface with a Go API. The desktop build embeds the Vue UI with Wails and stores metadata in SQLite, while the web/server development mode uses MySQL. Uploaded PDFs and editor state are kept in local cache storage.
 
 <a id="get-started"></a>
 ## 🎮 Get Started
 
-The quickest way to run the current full development setup is to use Docker for MySQL and the Go API, then run the Vite frontend locally.
+For normal desktop use, run the Wails desktop app. For web/server development, use Docker for MySQL and the Go API, then run the Vite frontend locally.
 
 ### Prerequisites
 
-- Docker with Docker Compose
+- Go 1.25+
 - Node.js 18+ and npm
+- Docker with Docker Compose, if you use the web/server development setup
+- Wails CLI and WebView2, if you build the desktop app from source
 
-### Start the application
+### Run the web development setup
 
 ```bash
 docker compose up -d --build
@@ -94,10 +97,43 @@ Open <http://localhost:5173>. The frontend proxies `/api` requests to the Go ser
   - Tune chat parameters such as temperature, top-p, max tokens, thinking, and effort
   - Current backend chat/model-list implementation is wired for DeepSeek-compatible provider handling
 - Runtime and deployment
-  - Go API with Gin and GORM, backed by MySQL metadata storage
-  - Local `Cache` storage for uploaded PDFs, editor state, thumbnails, and recoverable delete flow
+  - Wails desktop app with an embedded Vue UI, local Gin API bridge, and SQLite metadata storage
+  - Web/server development mode with Gin, GORM, and MySQL metadata storage
+  - Local cache storage for uploaded PDFs, editor state, thumbnails, and recoverable delete flow
   - Docker Compose setup for the backend API and MySQL
   - Feature toggles for AI Chat, translation, and notes in the UI settings panel
+
+<a id="desktop-app"></a>
+## 🖥️ Desktop App
+
+The desktop app is the intended distribution target. It embeds the built Vue frontend from `desktop/frontend/dist`, starts a local Gin backend on `127.0.0.1:38600`, and stores desktop metadata in SQLite.
+
+Default desktop data locations are under the current user's config directory:
+
+```text
+<UserConfigDir>/FunPDF/FunPDF.db
+<UserConfigDir>/FunPDF/cache
+```
+
+Build from source:
+
+```powershell
+cd web
+npm ci
+npm run build
+cd ..
+Copy-Item -Recurse -Force web\dist desktop\frontend\
+cd desktop
+wails build
+```
+
+The built executable is generated under:
+
+```text
+desktop/build/bin/FunPDF.exe
+```
+
+For desktop-specific notes, see [desktop/README.md](./desktop/README.md).
 
 <a id="run-with-docker"></a>
 ## 🎬 Run with Docker
