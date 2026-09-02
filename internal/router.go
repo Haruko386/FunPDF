@@ -45,6 +45,7 @@ func (r *Router) Setup(e *gin.Engine) {
 		{
 			runtime.GET("/info", r.runtimeHandler.Info)
 			runtime.POST("/open-path", r.runtimeHandler.OpenPath)
+			runtime.POST("/cache-dir/select", r.runtimeHandler.SelectCacheDir)
 		}
 
 		file := api.Group("/files")

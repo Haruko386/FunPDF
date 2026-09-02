@@ -19,14 +19,6 @@ func NewApp() *App {
 
 func (a *App) Start(ctx context.Context) {
 	a.ctx = ctx
-	backendCtx, cancelBackend := context.WithCancel(ctx)
-
-	a.shutdown = cancelBackend
-	backend, err := startBackend(backendCtx)
-	if err != nil {
-		log.Fatal(err)
-	}
-	a.backend = backend
 }
 
 func (a *App) Shutdown(ctx context.Context) {

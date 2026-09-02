@@ -20,7 +20,9 @@ import (
 	"context"
 	"embed"
 	"errors"
+	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -36,14 +38,18 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
-const backendAddr = "127.0.0.1:38600"
+const (
+	backendHost      = "127.0.0.1"
+	backendStartPort = 38600
+	backendMaxPort   = 38800
+)
 
-func newAPIProxy() http.Handler {
+func newAPIProxy(backendAddr string) http.Handler {
 	target, err := url.Parse("http://" + backendAddr)
 	if err != nil {
-		log.Fatalf("parse backend: %v", err)
-		return nil
+		panic(fmt.Errorf("parse backend address %q: %w", backendAddr, err))
 	}
+
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.URL.Path, "/api/") {
@@ -70,20 +76,48 @@ func desktopCacheDir() (string, error) {
 	return cacheDir, nil
 }
 
-func startBackend(ctx context.Context) (*http.Server, error) {
-	dbPath, err := desktopDatabasePath()
-	if err != nil {
-		return nil, err
-	}
-	err = funpdf.InitSqliteDatabase(dbPath)
-	if err != nil {
-		return nil, err
+func listenBackend() (net.Listener, string, error) {
+	var lastErr error
+
+	for p := backendStartPort; p <= backendMaxPort; p++ {
+		addr := fmt.Sprintf("%s:%d", backendHost, p)
+
+		listener, err := net.Listen("tcp", addr)
+		if err == nil {
+			return listener, addr, nil
+		}
+		lastErr = err
+		log.Printf("desktop backend port unavailable: %s: %v", addr, err)
 	}
 
-	cacheDir, err := desktopCacheDir()
+	return nil, "", fmt.Errorf("no available desktop backend port in %s:%d-%d: last error: %w",
+		backendHost,
+		backendStartPort,
+		backendMaxPort,
+		lastErr,
+	)
+}
+
+func startBackend(ctx context.Context) (*http.Server, string, error) {
+	dbPath, err := desktopDatabasePath()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
+
+	if err := funpdf.InitSqliteDatabase(dbPath); err != nil {
+		return nil, "", err
+	}
+
+	defaultCacheDir, err := desktopCacheDir()
+	if err != nil {
+		return nil, "", err
+	}
+
+	cacheDir, err := funpdf.EnsureRuntimeInfo(dbPath, defaultCacheDir)
+	if err != nil {
+		return nil, "", err
+	}
+
 	r := funpdf.NewHTTPHandlerWithRuntime(funpdf.RuntimeInfo{
 		Mode:         "desktop",
 		Database:     "sqlite",
@@ -96,15 +130,25 @@ func startBackend(ctx context.Context) (*http.Server, error) {
 
 	funpdf.StartPDFTextCleaner(ctx)
 
-	httpSvr := &http.Server{Addr: backendAddr, Handler: r}
+	listener, backendAddr, err := listenBackend()
+	if err != nil {
+		return nil, "", err
+	}
+
+	httpSvr := &http.Server{
+		Addr:    backendAddr,
+		Handler: r,
+	}
 
 	go func() {
-		if err = httpSvr.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("start backend: %v", err)
+		if err := httpSvr.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Printf("desktop backend error: %v", err)
 		}
 	}()
 
-	return httpSvr, nil
+	log.Printf("desktop backend listening on http://%s", backendAddr)
+
+	return httpSvr, backendAddr, nil
 }
 
 func desktopDatabasePath() (string, error) {
@@ -126,20 +170,30 @@ func desktopDatabasePath() (string, error) {
 func main() {
 	app := NewApp()
 
-	err := wails.Run(&options.App{
+	backendCtx, cancelBackend := context.WithCancel(context.Background())
+	app.shutdown = cancelBackend
+
+	backend, backendAddr, err := startBackend(backendCtx)
+	if err != nil {
+		cancelBackend()
+		log.Fatalf("start desktop backend: %v", err)
+	}
+
+	app.backend = backend
+
+	err = wails.Run(&options.App{
 		Title:  "FunPDF " + common.GetVersion(),
 		Width:  1280,
 		Height: 860,
 		AssetServer: &assetserver.Options{
 			Assets:  assets,
-			Handler: newAPIProxy(),
+			Handler: newAPIProxy(backendAddr),
 		},
 		OnStartup:  app.Start,
 		OnShutdown: app.Shutdown,
-		//Bind:       []any{app},
 	})
+
 	if err != nil {
 		log.Fatalf("start wails: %v", err)
-		return
 	}
 }

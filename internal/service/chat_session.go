@@ -19,20 +19,14 @@ type ChatSessionService struct {
 	fileDAO        *dao.FileDAO
 	dialogDAO      *dao.DialogDAO
 	modelSrv       *ModelService
-	cacheDir       string
 }
 
 func NewChatSessionService() *ChatSessionService {
-	return NewChatSessionServiceWithCacheDir("./Cache")
-}
-
-func NewChatSessionServiceWithCacheDir(cacheDir string) *ChatSessionService {
 	return &ChatSessionService{
 		chatSessionDAO: dao.NewChatSessionDAO(),
 		fileDAO:        dao.NewFileDAO(),
 		dialogDAO:      dao.NewDialogDAO(),
 		modelSrv:       NewModelService(),
-		cacheDir:       cacheDir,
 	}
 }
 
@@ -95,7 +89,7 @@ func (s *ChatSessionService) SendMessages(ctx context.Context, providerID, sessi
 
 	documentText, ok := engine.PDFText.Get(session.FileID)
 	if !ok {
-		pdfPath := filepath.Join(s.cacheDir, fileRecord.FileStorageKey, "source.pdf")
+		pdfPath := filepath.Join(CurrentCacheDir(), fileRecord.FileStorageKey, "source.pdf")
 
 		text, err := ExtractPDFText(pdfPath)
 		if err != nil {

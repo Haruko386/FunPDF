@@ -27,10 +27,18 @@ func NewRuntimeHandler(info RuntimeInfo) *RuntimeHandler {
 	return &RuntimeHandler{info: info, runtimeSvr: service.NewRuntimeService()}
 }
 
+// currentRuntimeInfo returns runtime info with live cache dir and version.
+func (h *RuntimeHandler) currentRuntimeInfo() RuntimeInfo {
+	info := h.info
+	info.Version = common.GetVersion()
+	info.CacheDir = service.CurrentCacheDir()
+	return info
+}
+
 func (h *RuntimeHandler) Info(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code": http.StatusOK,
-		"data": h.info,
+		"data": h.currentRuntimeInfo(),
 		"msg":  "success",
 	})
 }
@@ -60,5 +68,42 @@ func (h *RuntimeHandler) OpenPath(c *gin.Context) {
 			"path": path,
 		},
 		"msg": "success",
+	})
+}
+
+// SelectCacheDir picks a new folder via the native dialog, migrates the file
+// storage there and returns the updated runtime info.
+func (h *RuntimeHandler) SelectCacheDir(c *gin.Context) {
+	if h.info.Mode != "desktop" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code": http.StatusBadRequest,
+			"msg":  "更改缓存目录仅在桌面版中支持",
+		})
+		return
+	}
+
+	dir, err := h.runtimeSvr.PickCacheDir()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code": http.StatusInternalServerError,
+			"msg":  err.Error(),
+		})
+		return
+	}
+
+	if dir != "" {
+		if _, err := h.runtimeSvr.ChangeCacheDir(c.Request.Context(), dir); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code": http.StatusInternalServerError,
+				"msg":  err.Error(),
+			})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": http.StatusOK,
+		"data": h.currentRuntimeInfo(),
+		"msg":  "success",
 	})
 }
