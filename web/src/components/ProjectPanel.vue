@@ -81,6 +81,15 @@ function assignableAlbums(fileId: string) {
   return albums.value.filter(album => !assignedIds.has(album.id))
 }
 
+function firstAssignableAlbumId(fileId: string) {
+  return assignableAlbums(fileId)[0]?.id ?? ''
+}
+
+function ensureAssignmentTarget(fileId: string) {
+  if (assignmentTargets.value[fileId]) return
+  assignmentTargets.value[fileId] = firstAssignableAlbumId(fileId)
+}
+
 async function loadMemberships(files: CachedFile[]) {
   const entries = await Promise.all(files.map(async file => [file.id, await listFileAlbums(file.id)] as const))
   fileAlbums.value = Object.fromEntries(entries)
@@ -287,6 +296,7 @@ function openStoredFile(file: CachedFile) {
 function toggleFileActions(file: CachedFile) {
   expandedFileId.value = expandedFileId.value === file.id ? '' : file.id
   fileNameDrafts.value[file.id] = file.name
+  if (expandedFileId.value === file.id) ensureAssignmentTarget(file.id)
 }
 
 async function saveFileName(file: CachedFile) {

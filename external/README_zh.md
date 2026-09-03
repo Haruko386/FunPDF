@@ -14,14 +14,19 @@
   [![Language](../external/badge/License-GNU%20General%20Public.svg)](https://github.com/haruko386/funpdf/blob/main/LICENSE)
 </div>
 
+<div align="center" style="margin-top:20px;margin-bottom:20px;">
+  <img width="1200" alt="FunPDF-Banner" src="https://github.com/user-attachments/assets/bb015eea-50f6-4463-8e46-5dc9f82ce0e8" />
+</div>
+
 <details open>
 <summary>📕 <strong>目录</strong></summary>
 
 - [💡 FunPDF 是什么？](#what-is-funpdf)
 - [🎮 快速开始](#get-started)
   - [环境要求](#环境要求)
-  - [启动应用](#启动应用)
+  - [启动网页开发环境](#启动网页开发环境)
 - [🌟 主要功能](#key-features)
+- [🖥️ 桌面端](#desktop-app)
 - [🎬 使用 Docker 运行](#run-with-docker)
 - [🔧 配置](#configurations)
 - [🔨 构建 Docker 镜像](#build-a-docker-image)
@@ -35,19 +40,21 @@
 <a id="what-is-funpdf"></a>
 ## 💡 FunPDF 是什么？
 
-FunPDF 是一个轻量、可自托管的 PDF 阅读与标注原型。项目使用 Vue 3 构建网页界面，使用 Go 提供 API，并通过 MySQL 保存文档元数据。上传的 PDF 及其编辑状态保存在本地 `Cache` 目录中。
+FunPDF 是一个轻量的 PDF 阅读与标注原型。项目使用 Vue 3 构建界面，使用 Go 提供 API。桌面端通过 Wails 嵌入 Vue UI，并使用 SQLite 保存元数据；网页/服务端开发模式使用 MySQL。上传的 PDF 及其编辑状态保存在本地缓存目录中。
 
 <a id="get-started"></a>
 ## 🎮 快速开始
 
-目前最快的完整开发环境启动方式，是使用 Docker 运行 MySQL 和 Go API，再在本地运行 Vite 前端。
+普通用户建议使用桌面端。开发网页/服务端模式时，可以使用 Docker 运行 MySQL 和 Go API，再在本地运行 Vite 前端。
 
 ### 环境要求
 
-- Docker 与 Docker Compose
+- Go 1.25+
 - Node.js 18+ 与 npm
+- 如需运行网页/服务端开发环境，需要 Docker 与 Docker Compose
+- 如需从源码构建桌面端，需要 Wails CLI 和 WebView2
 
-### 启动应用
+### 启动网页开发环境
 
 ```bash
 docker compose up -d --build
@@ -92,10 +99,43 @@ npm run dev
   - 支持设置 temperature、top-p、max tokens、thinking 和 effort 等对话参数
   - 当前后端的聊天和云端模型列表实现主要面向 DeepSeek 兼容服务商
 - 运行与部署
-  - 使用 Gin、GORM 构建 Go API，并通过 MySQL 保存元数据
-  - 使用本地 `Cache` 保存上传的 PDF、编辑状态、缩略图，并提供可恢复的删除流程
+  - 桌面端使用 Wails 嵌入 Vue UI，通过本地 Gin API 桥接，并使用 SQLite 保存元数据
+  - 网页/服务端开发模式使用 Gin、GORM 和 MySQL 保存元数据
+  - 使用本地缓存目录保存上传的 PDF、编辑状态、缩略图，并提供可恢复的删除流程
   - 使用 Docker Compose 启动后端 API 与 MySQL
   - UI 设置面板支持开关 AI Chat、翻译和便签功能
+
+<a id="desktop-app"></a>
+## 🖥️ 桌面端
+
+桌面端是当前主要分发目标。它会嵌入 `desktop/frontend/dist` 中的 Vue 构建产物，在本机启动 `127.0.0.1:38600` 的 Gin 后端，并使用 SQLite 保存桌面端元数据。
+
+默认桌面端数据目录位于当前用户配置目录下：
+
+```text
+<UserConfigDir>/FunPDF/FunPDF.db
+<UserConfigDir>/FunPDF/cache
+```
+
+从源码构建桌面端：
+
+```powershell
+cd web
+npm ci
+npm run build
+cd ..
+Copy-Item -Recurse -Force web\dist desktop\frontend\
+cd desktop
+wails build
+```
+
+构建产物位于：
+
+```text
+desktop/build/bin/FunPDF.exe
+```
+
+桌面端说明见 [desktop/README.md](../desktop/README.md)。
 
 <a id="run-with-docker"></a>
 ## 🎬 使用 Docker 运行

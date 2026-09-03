@@ -9,3 +9,10 @@ export async function getRuntimeInfo() {
 export async function openRuntimePath(path: string) {
   await http.post('/runtime/open-path', { path })
 }
+
+export async function selectRuntimeCacheDir() {
+  const response = await http.post<
+    RuntimeInfo | { cache_dir: string } | { code: number; data: RuntimeInfo | { cache_dir: string } }
+  >('/runtime/cache-dir/select', undefined, { timeout: 0 })
+  return unwrapApiResponse(response.data)
+}
