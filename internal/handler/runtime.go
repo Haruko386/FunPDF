@@ -39,9 +39,9 @@ func (h *RuntimeHandler) currentRuntimeInfo() RuntimeInfo {
 
 func (h *RuntimeHandler) Info(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"data": h.currentRuntimeInfo(),
-		"msg":  "success",
+		"code":    http.StatusOK,
+		"data":    h.currentRuntimeInfo(),
+		"message": "success",
 	})
 }
 
@@ -49,8 +49,8 @@ func (h *RuntimeHandler) OpenPath(c *gin.Context) {
 	var req dto.OpenPathRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  err.Error(),
+			"code":    http.StatusBadRequest,
+			"message": err.Error(),
 		})
 		return
 	}
@@ -61,8 +61,8 @@ func (h *RuntimeHandler) OpenPath(c *gin.Context) {
 			status = http.StatusNotFound
 		}
 		c.JSON(status, gin.H{
-			"code": status,
-			"msg":  err.Error(),
+			"code":    status,
+			"message": err.Error(),
 		})
 		return
 	}
@@ -73,7 +73,7 @@ func (h *RuntimeHandler) OpenPath(c *gin.Context) {
 
 			"path": path,
 		},
-		"msg": "success",
+		"message": "success",
 	})
 }
 
@@ -82,8 +82,8 @@ func (h *RuntimeHandler) OpenPath(c *gin.Context) {
 func (h *RuntimeHandler) SelectCacheDir(c *gin.Context) {
 	if h.info.Mode != "desktop" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "Only support desktop version",
+			"code":    http.StatusBadRequest,
+			"message": "Only support desktop version",
 		})
 		return
 	}
@@ -91,8 +91,8 @@ func (h *RuntimeHandler) SelectCacheDir(c *gin.Context) {
 	dir, err := h.runtimeSvr.PickCacheDir()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
-			"msg":  err.Error(),
+			"code":    http.StatusInternalServerError,
+			"message": err.Error(),
 		})
 		return
 	}
@@ -100,16 +100,16 @@ func (h *RuntimeHandler) SelectCacheDir(c *gin.Context) {
 	if dir != "" {
 		if _, err := h.runtimeSvr.ChangeCacheDir(c.Request.Context(), dir); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"code": http.StatusInternalServerError,
-				"msg":  err.Error(),
+				"code":    http.StatusInternalServerError,
+				"message": err.Error(),
 			})
 			return
 		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"data": h.currentRuntimeInfo(),
-		"msg":  "success",
+		"code":    http.StatusOK,
+		"data":    h.currentRuntimeInfo(),
+		"message": "success",
 	})
 }

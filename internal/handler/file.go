@@ -32,16 +32,16 @@ func (h *FileHandler) ListFiles(c *gin.Context) {
 	fileList, err := h.fileSvr.ListFiles(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
-			"msg":  err.Error(),
+			"code":    http.StatusInternalServerError,
+			"message": err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"data": fileList,
-		"msg":  "success",
+		"code":    http.StatusOK,
+		"data":    fileList,
+		"message": "success",
 	})
 }
 
@@ -50,8 +50,8 @@ func (h *FileHandler) GetFile(c *gin.Context) {
 	fileID := strings.TrimSpace(c.Param("file_id"))
 	if fileID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "file id is empty",
+			"code":    http.StatusBadRequest,
+			"message": "file id is empty",
 		})
 		return
 	}
@@ -63,8 +63,8 @@ func (h *FileHandler) GetFile(c *gin.Context) {
 			status = http.StatusNotFound
 		}
 		c.JSON(status, gin.H{
-			"code": status,
-			"msg":  err.Error(),
+			"code":    status,
+			"message": err.Error(),
 		})
 		return
 	}
@@ -78,8 +78,8 @@ func (h *FileHandler) GetFileState(c *gin.Context) {
 	fileID := strings.TrimSpace(c.Param("file_id"))
 	if fileID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "file id is empty",
+			"code":    http.StatusBadRequest,
+			"message": "file id is empty",
 		})
 		return
 	}
@@ -91,16 +91,16 @@ func (h *FileHandler) GetFileState(c *gin.Context) {
 			status = http.StatusNotFound
 		}
 		c.JSON(status, gin.H{
-			"code": status,
-			"msg":  err.Error(),
+			"code":    status,
+			"message": err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"data": jsonFile,
-		"msg":  "success",
+		"code":    http.StatusOK,
+		"data":    jsonFile,
+		"message": "success",
 	})
 }
 
@@ -109,8 +109,8 @@ func (h *FileHandler) GetFileThumbnail(c *gin.Context) {
 	fileID := strings.TrimSpace(c.Param("file_id"))
 	if fileID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "file id is empty",
+			"code":    http.StatusBadRequest,
+			"message": "file id is empty",
 		})
 		return
 	}
@@ -122,16 +122,16 @@ func (h *FileHandler) GetFileThumbnail(c *gin.Context) {
 			status = http.StatusNotFound
 		}
 		c.JSON(status, gin.H{
-			"code": status,
-			"msg":  err.Error(),
+			"code":    status,
+			"message": err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"data": thumbnail,
-		"msg":  "success",
+		"code":    http.StatusOK,
+		"data":    thumbnail,
+		"message": "success",
 	})
 }
 
@@ -140,8 +140,8 @@ func (h *FileHandler) SaveFile(c *gin.Context) {
 	fileID := strings.TrimSpace(c.Param("file_id"))
 	if fileID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "file id is empty",
+			"code":    http.StatusBadRequest,
+			"message": "file id is empty",
 		})
 		return
 	}
@@ -149,8 +149,8 @@ func (h *FileHandler) SaveFile(c *gin.Context) {
 	var req dto.SaveFileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  err.Error(),
+			"code":    http.StatusBadRequest,
+			"message": err.Error(),
 		})
 		return
 	}
@@ -165,22 +165,22 @@ func (h *FileHandler) SaveFile(c *gin.Context) {
 			status = http.StatusConflict
 		}
 		c.JSON(status, gin.H{
-			"code": status,
-			"msg":  err.Error(),
+			"code":    status,
+			"message": err.Error(),
 		})
 		return
 	}
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
-			"msg":  "save failed",
+			"code":    http.StatusInternalServerError,
+			"message": "save failed",
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"msg":  "success",
+		"code":    http.StatusOK,
+		"message": "success",
 	})
 }
 
@@ -195,8 +195,8 @@ func (h *FileHandler) UploadFile(c *gin.Context) {
 			status = http.StatusRequestEntityTooLarge
 		}
 		c.JSON(status, gin.H{
-			"code": status,
-			"msg":  err.Error(),
+			"code":    status,
+			"message": err.Error(),
 		})
 		return
 	}
@@ -204,15 +204,15 @@ func (h *FileHandler) UploadFile(c *gin.Context) {
 	stateText := strings.TrimSpace(c.PostForm("editor_state"))
 	if stateText == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "editor_state is empty",
+			"code":    http.StatusBadRequest,
+			"message": "editor_state is empty",
 		})
 		return
 	}
 	if !json.Valid([]byte(stateText)) {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "editor_state is invalid JSON",
+			"code":    http.StatusBadRequest,
+			"message": "editor_state is invalid JSON",
 		})
 		return
 	}
@@ -220,8 +220,8 @@ func (h *FileHandler) UploadFile(c *gin.Context) {
 	source, err := fileHeader.Open()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  err.Error(),
+			"code":    http.StatusBadRequest,
+			"message": err.Error(),
 		})
 		return
 	}
@@ -236,16 +236,16 @@ func (h *FileHandler) UploadFile(c *gin.Context) {
 	file, err := h.fileSvr.UploadFile(c.Request.Context(), req, source)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
-			"msg":  err.Error(),
+			"code":    http.StatusInternalServerError,
+			"message": err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"code": http.StatusCreated,
-		"msg":  "success",
-		"data": file,
+		"code":    http.StatusCreated,
+		"message": "success",
+		"data":    file,
 	})
 }
 
@@ -254,8 +254,8 @@ func (h *FileHandler) AlertFile(c *gin.Context) {
 	fileID := strings.TrimSpace(c.Param("file_id"))
 	if fileID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "file id is empty",
+			"code":    http.StatusBadRequest,
+			"message": "file id is empty",
 		})
 		return
 	}
@@ -263,8 +263,8 @@ func (h *FileHandler) AlertFile(c *gin.Context) {
 	var req dto.AlertFileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  err.Error(),
+			"code":    http.StatusBadRequest,
+			"message": err.Error(),
 		})
 		return
 	}
@@ -279,16 +279,16 @@ func (h *FileHandler) AlertFile(c *gin.Context) {
 			status = http.StatusNotFound
 		}
 		c.JSON(status, gin.H{
-			"code": status,
-			"msg":  err.Error(),
+			"code":    status,
+			"message": err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"data": file,
-		"msg":  "success",
+		"code":    http.StatusOK,
+		"data":    file,
+		"message": "success",
 	})
 }
 
@@ -297,8 +297,8 @@ func (h *FileHandler) DeleteFile(c *gin.Context) {
 	fileID := strings.TrimSpace(c.Param("file_id"))
 	if fileID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "file id is empty",
+			"code":    http.StatusBadRequest,
+			"message": "file id is empty",
 		})
 		return
 	}
@@ -309,15 +309,15 @@ func (h *FileHandler) DeleteFile(c *gin.Context) {
 			status = http.StatusNotFound
 		}
 		c.JSON(status, gin.H{
-			"code": status,
-			"msg":  err.Error(),
+			"code":    status,
+			"message": err.Error(),
 		})
 		return
 	}
 	if affected == 0 {
 		c.JSON(http.StatusNotFound, gin.H{
-			"code": http.StatusNotFound,
-			"msg":  "file id is not exist",
+			"code":    http.StatusNotFound,
+			"message": "file id is not exist",
 		})
 		return
 	}
@@ -329,8 +329,8 @@ func (h *FileHandler) ListFileAlbums(c *gin.Context) {
 	fileID := strings.TrimSpace(c.Param("file_id"))
 	if fileID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "file id is empty",
+			"code":    http.StatusBadRequest,
+			"message": "file id is empty",
 		})
 		return
 	}
@@ -338,16 +338,16 @@ func (h *FileHandler) ListFileAlbums(c *gin.Context) {
 	albums, err := h.fileSvr.ListFileAlbums(c.Request.Context(), fileID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
-			"msg":  err.Error(),
+			"code":    http.StatusInternalServerError,
+			"message": err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"data": albums,
-		"msg":  "success",
+		"code":    http.StatusOK,
+		"data":    albums,
+		"message": "success",
 	})
 }
 
@@ -355,8 +355,8 @@ func (h *FileHandler) DeleteFileCache(c *gin.Context) {
 	fileID := strings.TrimSpace(c.Param("file_id"))
 	if fileID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "file id is empty",
+			"code":    http.StatusBadRequest,
+			"message": "file id is empty",
 		})
 		return
 	}

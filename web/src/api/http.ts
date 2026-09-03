@@ -3,7 +3,6 @@ import axios from 'axios'
 export interface ApiEnvelope<T> {
   code: number
   data: T
-  msg?: string
   message?: string
 }
 
@@ -21,8 +20,8 @@ export function unwrapApiResponse<T>(payload: T | ApiEnvelope<T>): T {
 
 export function apiErrorMessage(error: unknown, fallback = '请求失败，请稍后重试') {
   if (axios.isAxiosError(error)) {
-    const payload = error.response?.data as { msg?: string; message?: string } | undefined
-    return payload?.msg || payload?.message || error.message || fallback
+    const payload = error.response?.data as { message?: string } | undefined
+    return payload?.message || error.message || fallback
   }
   return error instanceof Error ? error.message : fallback
 }

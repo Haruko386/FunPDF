@@ -30,8 +30,8 @@ func (h *ChatSessionHandler) SetupChatSession(c *gin.Context) {
 	providerID := strings.TrimSpace(c.Param("provider_id"))
 	if providerID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "provider id is empty",
+			"code":    http.StatusBadRequest,
+			"message": "provider id is empty",
 		})
 		return
 	}
@@ -39,8 +39,8 @@ func (h *ChatSessionHandler) SetupChatSession(c *gin.Context) {
 	var req dto.SetupChatSessionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  err.Error(),
+			"code":    http.StatusBadRequest,
+			"message": err.Error(),
 		})
 		return
 	}
@@ -52,16 +52,16 @@ func (h *ChatSessionHandler) SetupChatSession(c *gin.Context) {
 			status = http.StatusNotFound
 		}
 		c.JSON(status, gin.H{
-			"code": status,
-			"msg":  err.Error(),
+			"code":    status,
+			"message": err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"data": gin.H{"id": session},
-		"msg":  "success",
+		"code":    http.StatusOK,
+		"data":    gin.H{"id": session},
+		"message": "success",
 	})
 }
 
@@ -69,8 +69,8 @@ func (h *ChatSessionHandler) DeleteSession(c *gin.Context) {
 	providerID := strings.TrimSpace(c.Param("provider_id"))
 	if providerID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "provider id is empty",
+			"code":    http.StatusBadRequest,
+			"message": "provider id is empty",
 		})
 		return
 	}
@@ -78,8 +78,8 @@ func (h *ChatSessionHandler) DeleteSession(c *gin.Context) {
 	sessionID := strings.TrimSpace(c.Param("session_id"))
 	if sessionID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "session id is empty",
+			"code":    http.StatusBadRequest,
+			"message": "session id is empty",
 		})
 		return
 	}
@@ -90,8 +90,8 @@ func (h *ChatSessionHandler) DeleteSession(c *gin.Context) {
 			status = http.StatusNotFound
 		}
 		c.JSON(status, gin.H{
-			"code": status,
-			"msg":  err.Error(),
+			"code":    status,
+			"message": err.Error(),
 		})
 		return
 	}
@@ -103,8 +103,8 @@ func (h *ChatSessionHandler) SendMessages(c *gin.Context) {
 	providerID := strings.TrimSpace(c.Param("provider_id"))
 	if providerID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "provider id is empty",
+			"code":    http.StatusBadRequest,
+			"message": "provider id is empty",
 		})
 		return
 	}
@@ -112,8 +112,8 @@ func (h *ChatSessionHandler) SendMessages(c *gin.Context) {
 	sessionID := strings.TrimSpace(c.Param("session_id"))
 	if sessionID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "session id is empty",
+			"code":    http.StatusBadRequest,
+			"message": "session id is empty",
 		})
 		return
 	}
@@ -121,8 +121,8 @@ func (h *ChatSessionHandler) SendMessages(c *gin.Context) {
 	var req dto.SendMessageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  err.Error(),
+			"code":    http.StatusBadRequest,
+			"message": err.Error(),
 		})
 		return
 	}
@@ -169,8 +169,8 @@ func (h *ChatSessionHandler) SendMessages(c *gin.Context) {
 			status = http.StatusNotFound
 		}
 		c.JSON(status, gin.H{
-			"code": status,
-			"msg":  err.Error(),
+			"code":    status,
+			"message": err.Error(),
 		})
 		return
 	}
@@ -189,6 +189,6 @@ func (h *ChatSessionHandler) SendMessages(c *gin.Context) {
 			"content":           answer,
 			"reasoning_content": reasoning,
 		},
-		"msg": "success",
+		"message": "success",
 	})
 }
