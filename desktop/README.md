@@ -15,14 +15,12 @@ The SQLite database stays in the user config directory. PDF source files, editor
 
 ## Build
 
-Build the web frontend first, then copy the generated `dist` directory into the desktop frontend folder:
+Build the web frontend directly into the desktop asset directory:
 
 ```powershell
 cd ..\web
 npm ci
-npm run build
-cd ..
-Copy-Item -Recurse -Force web\dist desktop\frontend\
+npm run build:desktop
 ```
 
 Then build the desktop app:
@@ -38,6 +36,16 @@ The executable is generated at:
 desktop/build/bin/FunPDF.exe
 ```
 
+## Release assets
+
+Tagged releases build and upload only the desktop application assets:
+
+- `FunPDF-Installer-<tag>.exe`
+- `FunPDF-Installer-<tag>.exe.sha256`
+- `FunPDF-<tag>-windows.zip`
+
+The GitHub-generated source archives may still appear separately.
+
 ## Development
 
 Run from the `desktop` directory:
@@ -52,5 +60,5 @@ The desktop app serves embedded assets and proxies `/api/...` calls to the local
 
 - The desktop build does not require MySQL.
 - The web/server development entry at the repository root still uses MySQL.
-- If the app opens with a blank window, rebuild `web/dist` and copy it to `desktop/frontend/dist`.
+- If the app opens with a blank window, rebuild the embedded frontend with `npm run build:desktop`.
 - If API calls fail, check whether port `38600` is already occupied.

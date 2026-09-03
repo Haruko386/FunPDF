@@ -38,12 +38,7 @@ jobs:
         working-directory: web
         run: |
           npm ci
-          npm run build
-
-      - name: Copy frontend assets for desktop embed
-        run: |
-          mkdir -p desktop/frontend
-          cp -R web/dist desktop/frontend/
+          npm run build:desktop
 
       - name: Test
         run: go test -race -cover ./...

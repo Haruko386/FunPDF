@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type App struct {
@@ -20,6 +22,21 @@ func NewApp() *App {
 // Start stores the Wails application context for later desktop operations.
 func (a *App) Start(ctx context.Context) {
 	a.ctx = ctx
+}
+
+// Focus brings the existing desktop window to the foreground.
+func (a *App) Focus() {
+	if a.ctx == nil {
+		return
+	}
+
+	wailsRuntime.WindowShow(a.ctx)
+	wailsRuntime.WindowUnminimise(a.ctx)
+
+	// Windows sometimes refuses direct foreground activation; toggling
+	// always-on-top is a practical way to raise the existing window.
+	wailsRuntime.WindowSetAlwaysOnTop(a.ctx, true)
+	wailsRuntime.WindowSetAlwaysOnTop(a.ctx, false)
 }
 
 // Shutdown handles application shutdown cleanup.

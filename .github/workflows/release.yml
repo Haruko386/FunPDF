@@ -44,47 +44,59 @@ jobs:
         working-directory: web
         run: |
           npm ci
-          npm run build
-
-      - name: Copy frontend assets for desktop embed
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force desktop/frontend | Out-Null
-          Copy-Item -Recurse -Force web/dist desktop/frontend/
-
-      - name: Build Windows server executable
-        run: |
-          go build -trimpath -ldflags "-s -w -X FunPDF/internal/common.version=${{ github.ref_name }}" -o FunPDF-Server-${{ github.ref_name }}.exe .
+          npm run build:desktop
 
       - name: Build Windows desktop executable
         working-directory: desktop
         shell: pwsh
         run: |
           wails build -clean -nsis -ldflags "-s -w -X FunPDF/internal/common.version=${{ github.ref_name }}"
-          Copy-Item build/bin/FunPDF.exe ../FunPDF-Desktop-${{ github.ref_name }}.exe
           $installer = Get-ChildItem build/bin -Filter "*installer*.exe" | Select-Object -First 1
           if ($null -eq $installer) {
             throw "NSIS installer was not generated under desktop/build/bin"
           }
           Copy-Item $installer.FullName "../FunPDF-Installer-${{ github.ref_name }}.exe"
 
-      - name: Generate checksums
+      - name: Package portable app
         shell: pwsh
         run: |
-          Get-FileHash FunPDF-Server-${{ github.ref_name }}.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  FunPDF-Server-${{ github.ref_name }}.exe" } | Set-Content FunPDF-Server-${{ github.ref_name }}.exe.sha256
-          Get-FileHash FunPDF-Desktop-${{ github.ref_name }}.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  FunPDF-Desktop-${{ github.ref_name }}.exe" } | Set-Content FunPDF-Desktop-${{ github.ref_name }}.exe.sha256
+          $version = "${{ github.ref_name }}"
+          $packageDir = "FunPDF-$version-windows"
+          New-Item -ItemType Directory -Force $packageDir | Out-Null
+          Copy-Item desktop/build/bin/FunPDF.exe "$packageDir/FunPDF.exe"
+          Copy-Item LICENSE "$packageDir/LICENSE"
+          Copy-Item README.md "$packageDir/README.md"
+          Copy-Item desktop/README.md "$packageDir/README-Desktop.md"
+          Compress-Archive -Path "$packageDir/*" -DestinationPath "FunPDF-$version-windows.zip" -Force
+
+      - name: Generate installer checksum
+        shell: pwsh
+        run: |
           Get-FileHash FunPDF-Installer-${{ github.ref_name }}.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  FunPDF-Installer-${{ github.ref_name }}.exe" } | Set-Content FunPDF-Installer-${{ github.ref_name }}.exe.sha256
+
+      - name: Remove old release assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $assetsJson = gh release view "${{ github.ref_name }}" --json assets --jq ".assets[].name" 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Release ${{ github.ref_name }} does not exist yet; no assets to remove."
+            exit 0
+          }
+          $assetsJson | ForEach-Object {
+            if ($_ -ne "") {
+              gh release delete-asset "${{ github.ref_name }}" $_ --yes
+            }
+          }
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            FunPDF-Server-${{ github.ref_name }}.exe
-            FunPDF-Server-${{ github.ref_name }}.exe.sha256
-            FunPDF-Desktop-${{ github.ref_name }}.exe
-            FunPDF-Desktop-${{ github.ref_name }}.exe.sha256
             FunPDF-Installer-${{ github.ref_name }}.exe
             FunPDF-Installer-${{ github.ref_name }}.exe.sha256
+            FunPDF-${{ github.ref_name }}-windows.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
