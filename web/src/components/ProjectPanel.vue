@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
   addFilesToAlbum,
@@ -516,7 +516,10 @@ async function permanentlyDelete(file: CachedFile) {
 }
 
 function handleKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && thumbnailCropOpen.value) closeThumbnailCropper()
+    if (event.key === 'Escape' && thumbnailCropOpen.value) {
+      closeThumbnailCropper()
+      return
+    }
   if (event.key === 'Escape' && createOpen.value) closeCreate()
 }
 
