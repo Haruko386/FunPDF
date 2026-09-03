@@ -69,6 +69,7 @@ func (s *ModelService) SaveProviderModels(ctx context.Context, providerID string
 	return modelList, nil
 }
 
+// DeleteProviderModels validates and deletes provider model selections.
 func (s *ModelService) DeleteProviderModels(ctx context.Context, providerID string, req *dto.DeleteModelsRequest) error {
 	if req.IDs == nil {
 		return errors.New("ids is empty")
@@ -92,6 +93,7 @@ func (s *ModelService) DeleteProviderModels(ctx context.Context, providerID stri
 	return nil
 }
 
+// ChatToModelStreamWithSender sends a streaming chat request through the model service.
 func (s *ModelService) ChatToModelStreamWithSender(ctx context.Context, providerID, modelName, modelID string, messages []models.Message, modelCfg models.ModelConfig, chatCfg models.ChatConfig, sender func(*string, *string) error) error {
 	resp, err := s.ChatToModel(ctx, providerID, modelName, modelID, messages, modelCfg, chatCfg, sender)
 	if err != nil {
@@ -104,6 +106,7 @@ func (s *ModelService) ChatToModelStreamWithSender(ctx context.Context, provider
 	return sender(&done, nil)
 }
 
+// ChatToModel validates provider/model configuration and sends a chat request.
 func (s *ModelService) ChatToModel(ctx context.Context, providerID, modelName, modelID string, messages []models.Message, modelCfg models.ModelConfig, chatCfg models.ChatConfig, sender ...func(*string, *string) error) (*dto.ChatResponse, error) {
 	providerID = strings.TrimSpace(providerID)
 	modelName = strings.TrimSpace(modelName)
@@ -178,6 +181,7 @@ func (s *ModelService) ChatToModel(ctx context.Context, providerID, modelName, m
 	}
 }
 
+// ListSupportedModels returns models supported by a provider configuration.
 func (s *ModelService) ListSupportedModels(ctx context.Context, providerID string, modelCfg models.ModelConfig) (*[]dto.ListModelsResponse, error) {
 	providerID = strings.TrimSpace(providerID)
 	if providerID == "" {

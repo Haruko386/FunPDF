@@ -69,6 +69,7 @@ func (h *ProviderHandler) CreateProvider(c *gin.Context) {
 	})
 }
 
+// UpdateProvider handles updating a provider configuration.
 func (h *ProviderHandler) UpdateProvider(c *gin.Context) {
 	var req dto.UpdateProviderRequest
 	if err := c.ShouldBind(&req); err != nil {
@@ -103,6 +104,7 @@ func (h *ProviderHandler) UpdateProvider(c *gin.Context) {
 	})
 }
 
+// DeleteProvider handles deleting a provider configuration.
 func (h *ProviderHandler) DeleteProvider(c *gin.Context) {
 	providerID := strings.TrimSpace(c.Param("provider_id"))
 	if providerID == "" {

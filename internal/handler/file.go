@@ -351,6 +351,7 @@ func (h *FileHandler) ListFileAlbums(c *gin.Context) {
 	})
 }
 
+// DeleteFileCache handles clearing cached PDF text for a file.
 func (h *FileHandler) DeleteFileCache(c *gin.Context) {
 	fileID := strings.TrimSpace(c.Param("file_id"))
 	if fileID == "" {

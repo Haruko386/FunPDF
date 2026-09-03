@@ -30,6 +30,7 @@ func NewChatSessionService() *ChatSessionService {
 	}
 }
 
+// SetupChatSession validates input and creates a PDF chat session.
 func (s *ChatSessionService) SetupChatSession(ctx context.Context, providerID string, req *dto.SetupChatSessionRequest) (string, error) {
 	fileID := strings.TrimSpace(req.FileID)
 	modelID := strings.TrimSpace(req.ModelID)
@@ -51,6 +52,7 @@ func (s *ChatSessionService) SetupChatSession(ctx context.Context, providerID st
 	return s.chatSessionDAO.SetupChatSession(ctx, dao.DB, providerID, modelID, modelName, fileID, systemPrompt)
 }
 
+// DeleteSession deletes a PDF chat session after provider validation.
 func (s *ChatSessionService) DeleteSession(ctx context.Context, providerID, sessionID string) error {
 	providerID = strings.TrimSpace(providerID)
 	sessionID = strings.TrimSpace(sessionID)
@@ -61,6 +63,7 @@ func (s *ChatSessionService) DeleteSession(ctx context.Context, providerID, sess
 	return s.chatSessionDAO.DeleteSession(ctx, dao.DB, providerID, sessionID)
 }
 
+// SendMessages builds chat context, calls the model, and stores dialog history.
 func (s *ChatSessionService) SendMessages(ctx context.Context, providerID, sessionID string, req *dto.SendMessageRequest, sender func(*string, *string) error) (*dto.ChatResponse, error) {
 	providerID = strings.TrimSpace(providerID)
 	sessionID = strings.TrimSpace(sessionID)

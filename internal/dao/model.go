@@ -66,6 +66,7 @@ func (d *ModelDAO) SaveProviderModels(ctx context.Context, db *gorm.DB, provider
 	return &modelList, nil
 }
 
+// DeleteProviderModels deletes selected provider models.
 func (d *ModelDAO) DeleteProviderModels(ctx context.Context, db *gorm.DB, providerID string, modelIDs []string) error {
 	var affected int64
 	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {

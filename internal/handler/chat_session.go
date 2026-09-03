@@ -65,6 +65,7 @@ func (h *ChatSessionHandler) SetupChatSession(c *gin.Context) {
 	})
 }
 
+// DeleteSession handles deleting a PDF chat session.
 func (h *ChatSessionHandler) DeleteSession(c *gin.Context) {
 	providerID := strings.TrimSpace(c.Param("provider_id"))
 	if providerID == "" {
@@ -99,6 +100,7 @@ func (h *ChatSessionHandler) DeleteSession(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// SendMessages handles sending a message to a PDF chat session.
 func (h *ChatSessionHandler) SendMessages(c *gin.Context) {
 	providerID := strings.TrimSpace(c.Param("provider_id"))
 	if providerID == "" {

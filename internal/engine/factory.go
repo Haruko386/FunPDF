@@ -21,6 +21,7 @@ func NewTranslatorFactory() *TranslatorFactory {
 	}
 }
 
+// GetTranslator creates a configured translator implementation by name.
 func (t *TranslatorFactory) GetTranslator(ctx context.Context, db *gorm.DB, translatorName, region string) (Translator, error) {
 	if translatorName == "" {
 		return nil, errors.New("translators name is required")

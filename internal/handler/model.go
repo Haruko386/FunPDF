@@ -93,6 +93,7 @@ func (h *ModelHandler) SaveProviderModels(c *gin.Context) {
 	})
 }
 
+// DeleteProviderModels handles deleting provider model selections.
 func (h *ModelHandler) DeleteProviderModels(c *gin.Context) {
 	providerID := strings.TrimSpace(c.Param("provider_id"))
 	if providerID == "" {
@@ -247,6 +248,7 @@ func (h *ModelHandler) ChatToModel(c *gin.Context) {
 	})
 }
 
+// ListSupportedModels handles fetching models supported by a provider.
 func (h *ModelHandler) ListSupportedModels(c *gin.Context) {
 	providerID := strings.TrimSpace(c.Param("provider_id"))
 	if providerID == "" {

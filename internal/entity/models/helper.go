@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+// doStreamChat sends a streaming chat request and forwards response deltas.
 func doStreamChat(client *http.Client, req *http.Request, providerName string, sender func(*string, *string) error) (*dto.ChatResponse, error) {
 	if client == nil {
 		client = http.DefaultClient
@@ -91,6 +92,7 @@ func doStreamChat(client *http.Client, req *http.Request, providerName string, s
 	}, nil
 }
 
+// doNoneStreamChat sends a non-streaming chat request and parses the final response.
 func doNoneStreamChat(client *http.Client, req *http.Request, providerName string) (*dto.ChatResponse, error) {
 	if client == nil {
 		client = http.DefaultClient
@@ -192,6 +194,7 @@ func implementDeepSeekChatConfig(chatCfg *ChatConfig, reqBody map[string]any) {
 
 }
 
+// implementMoonShotConfig applies Moonshot chat options to the request body.
 func implementMoonShotConfig(chatCfg *ChatConfig, reqBody map[string]any) {
 	if chatCfg.Stream != nil && *chatCfg.Stream {
 		reqBody["stream"] = true
@@ -220,6 +223,7 @@ func implementMoonShotConfig(chatCfg *ChatConfig, reqBody map[string]any) {
 	}
 }
 
+// implementSiliconFlowConfig applies SiliconFlow chat options to the request body.
 func implementSiliconFlowConfig(chatCfg *ChatConfig, reqBody map[string]any) {
 	if chatCfg.Stream != nil && *chatCfg.Stream {
 		reqBody["stream"] = true

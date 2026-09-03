@@ -331,6 +331,7 @@ func (s *FileService) ListFileAlbums(ctx context.Context, fileID string) ([]enti
 	return albums, nil
 }
 
+// DeleteFileCache removes cached extracted text for a file.
 func (s *FileService) DeleteFileCache(ctx context.Context, fileID string) {
 	engine.PDFText.Delete(strings.TrimSpace(fileID))
 }

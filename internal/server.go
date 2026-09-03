@@ -94,6 +94,7 @@ func StartPDFTextCleaner(ctx context.Context) {
 	}()
 }
 
+// AutoMigrateDatabase applies database schema migrations.
 func AutoMigrateDatabase() error {
 	return dao.DB.AutoMigrate(
 		&entity.File{},
@@ -108,6 +109,7 @@ func AutoMigrateDatabase() error {
 		&entity.RuntimeInfo{})
 }
 
+// InitSqliteDatabase initializes SQLite and runs migrations.
 func InitSqliteDatabase(dbPath string) error {
 	err := dao.InitSqlite(dbPath)
 	if err != nil {

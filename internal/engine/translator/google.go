@@ -31,6 +31,7 @@ func NewGoogleTranslator(apiKey, url string) *GoogleTranslator {
 	}
 }
 
+// Translate sends text to the provider and returns translated text.
 func (g *GoogleTranslator) Translate(ctx context.Context, from, to, q string, params json.RawMessage) (string, error) {
 	q = common.ConcatenatingStrings(q)
 
@@ -82,12 +83,14 @@ func (g *GoogleTranslator) Translate(ctx context.Context, from, to, q string, pa
 	return resp[0].Text, nil
 }
 
+// Healthy checks whether the translator has enough configuration to run.
 func (g *GoogleTranslator) Healthy(ctx context.Context) bool {
 	_, err := g.Translate(ctx, "en", "zh-CN", "hi", nil)
 	common.Info(fmt.Sprintf("please read %s for more info", GoogleTranslatorAPIReference))
 	return err == nil
 }
 
+// Name returns the translator provider name.
 func (g *GoogleTranslator) Name() string {
 	return "google"
 }

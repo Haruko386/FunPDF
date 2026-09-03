@@ -16,6 +16,7 @@ type OpenAIModel struct {
 	BaseModel
 }
 
+// Chat sends messages to the provider chat completion API.
 func (o *OpenAIModel) Chat(ctx context.Context, modelCfg *ModelConfig, chatCfg *ChatConfig, messages []Message, modelName string, sender func(*string, *string) error) (*dto.ChatResponse, error) {
 	url := fmt.Sprintf("%s/%s", o.BaseURL, o.URLSuffix)
 
@@ -249,6 +250,7 @@ func (o *OpenAIModel) Chat(ctx context.Context, modelCfg *ModelConfig, chatCfg *
 	}, nil
 }
 
+// ListModels fetches model metadata from the provider API.
 func (o *OpenAIModel) ListModels(ctx context.Context, modelCfg *ModelConfig) (*[]dto.ListModelsResponse, error) {
 	url := fmt.Sprintf("%s/%s", o.BaseURL, o.URLSuffix)
 
@@ -307,6 +309,7 @@ func (o *OpenAIModel) ListModels(ctx context.Context, modelCfg *ModelConfig) (*[
 	return &models, nil
 }
 
+// Name returns the model provider name.
 func (o *OpenAIModel) Name() string {
 	return "OpenAI"
 }

@@ -37,6 +37,7 @@ func (h *RuntimeHandler) currentRuntimeInfo() RuntimeInfo {
 	return info
 }
 
+// Info handles returning current runtime information.
 func (h *RuntimeHandler) Info(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code":    http.StatusOK,
@@ -45,6 +46,7 @@ func (h *RuntimeHandler) Info(c *gin.Context) {
 	})
 }
 
+// OpenPath handles opening a runtime path on the host system.
 func (h *RuntimeHandler) OpenPath(c *gin.Context) {
 	var req dto.OpenPathRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

@@ -36,6 +36,7 @@ func NewAzureTranslator(apiKey, region, url string) *AzureTranslator {
 	}
 }
 
+// Translate sends text to the provider and returns translated text.
 func (a *AzureTranslator) Translate(ctx context.Context, from, to, q string, params json.RawMessage) (string, error) {
 	q = strings.TrimSpace(q)
 	if q == "" {
@@ -148,12 +149,14 @@ func (a *AzureTranslator) Translate(ctx context.Context, from, to, q string, par
 	return translatedText, nil
 }
 
+// Healthy checks whether the translator has enough configuration to run.
 func (a *AzureTranslator) Healthy(ctx context.Context) bool {
 	_, err := a.Translate(ctx, "en", "zh-Hans", "hi", nil)
 	common.Info(fmt.Sprintf("please read %s for more info", AzureTranslatorAPIReference))
 	return err == nil
 }
 
+// Name returns the translator provider name.
 func (a *AzureTranslator) Name() string {
 	return "azure"
 }

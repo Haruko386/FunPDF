@@ -45,6 +45,7 @@ func NewRuntimeService() *RuntimeService {
 	return &RuntimeService{}
 }
 
+// OpenPath resolves and opens a runtime path on the host system.
 func (s *RuntimeService) OpenPath(_ context.Context, req dto.OpenPathRequest) (path string, err error) {
 	reqPath := strings.TrimSpace(req.Path)
 	if reqPath == "" {
@@ -129,6 +130,7 @@ func (s *RuntimeService) ChangeCacheDir(ctx context.Context, newDir string) (str
 	return newDir, nil
 }
 
+// ensureEmptyDir creates a directory and verifies it contains no files.
 func ensureEmptyDir(dir string) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -143,6 +145,7 @@ func ensureEmptyDir(dir string) error {
 	return nil
 }
 
+// copyDirTree recursively copies a directory tree.
 func copyDirTree(srcDir, dstDir string) error {
 	if err := os.MkdirAll(dstDir, 0755); err != nil {
 		return err
@@ -177,6 +180,7 @@ func copyDirTree(srcDir, dstDir string) error {
 	})
 }
 
+// copyFileContent copies one file while preserving permissions.
 func copyFileContent(srcPath, dstPath string, perm fs.FileMode) error {
 	src, err := os.Open(srcPath)
 	if err != nil {

@@ -105,6 +105,7 @@ func isValidImageFormat(data []byte) bool {
 	return false
 }
 
+// checkDuplicateIDs returns duplicate IDs from an input list.
 func checkDuplicateIDs(ids []string) []string {
 	validIDs := make([]string, 0, len(ids))
 	seen := make(map[string]struct{}, len(ids))
@@ -119,6 +120,7 @@ func checkDuplicateIDs(ids []string) []string {
 	return validIDs
 }
 
+// GetLocalJsonProviders loads provider definitions from local JSON config files.
 func GetLocalJsonProviders() ([]dto.ListProvidersResult, error) {
 	list := make([]dto.ListProvidersResult, 0)
 	configs, err := conf.ReadModelConfigs()
@@ -138,6 +140,7 @@ func GetLocalJsonProviders() ([]dto.ListProvidersResult, error) {
 	return list, nil
 }
 
+// ExtractPDFText extracts text content from a PDF file.
 func ExtractPDFText(path string) (string, error) {
 	f, r, err := pdf.Open(path)
 	if err != nil {

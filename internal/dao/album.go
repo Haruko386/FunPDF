@@ -109,6 +109,7 @@ func (d *AlbumDAO) UploadFilesToAlbum(ctx context.Context, db *gorm.DB, albumID 
 	return unSaved, int64(len(fileIDs) - len(unSaved)), nil
 }
 
+// DeleteFilesFromAlbum deletes album-file relations.
 func (d *AlbumDAO) DeleteFilesFromAlbum(ctx context.Context, db *gorm.DB, albumID string, fileIDs []string) (int64, error) {
 	result := db.WithContext(ctx).Model(&entity.AlbumFile{}).
 		Where("album_id = ?", albumID).

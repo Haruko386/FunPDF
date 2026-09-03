@@ -17,10 +17,12 @@ func NewApp() *App {
 	return &App{}
 }
 
+// Start stores the Wails application context for later desktop operations.
 func (a *App) Start(ctx context.Context) {
 	a.ctx = ctx
 }
 
+// Shutdown handles application shutdown cleanup.
 func (a *App) Shutdown(ctx context.Context) {
 	if a.backend != nil {
 		toCtx, cancelBackend := context.WithTimeout(context.Background(), time.Second*5)

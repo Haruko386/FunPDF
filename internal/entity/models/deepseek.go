@@ -14,6 +14,7 @@ type DeepSeekModel struct {
 	BaseModel
 }
 
+// Chat sends messages to the provider chat completion API.
 func (d *DeepSeekModel) Chat(ctx context.Context, modelCfg *ModelConfig, chatCfg *ChatConfig, messages []Message, modelName string, sender func(*string, *string) error) (*dto.ChatResponse, error) {
 	url := fmt.Sprintf("%s/%s", d.BaseURL, d.URLSuffix)
 
@@ -45,6 +46,7 @@ func (d *DeepSeekModel) Chat(ctx context.Context, modelCfg *ModelConfig, chatCfg
 	return doNoneStreamChat(d.HTTPClient, req, d.Name())
 }
 
+// ListModels fetches model metadata from the provider API.
 func (d *DeepSeekModel) ListModels(ctx context.Context, modelCfg *ModelConfig) (*[]dto.ListModelsResponse, error) {
 	url := fmt.Sprintf("%s/%s", d.BaseURL, d.URLSuffix)
 
@@ -100,6 +102,7 @@ func (d *DeepSeekModel) ListModels(ctx context.Context, modelCfg *ModelConfig) (
 	return &models, nil
 }
 
+// Name returns the model provider name.
 func (d *DeepSeekModel) Name() string {
 	return "DeepSeek"
 }
