@@ -17,6 +17,8 @@ type RuntimeInfo struct {
 	Database     string `json:"database"`
 	DatabasePath string `json:"database_path,omitempty"`
 	CacheDir     string `json:"cache_dir"`
+
+	DesktopToken string `json:"-"`
 }
 
 type RuntimeHandler struct {

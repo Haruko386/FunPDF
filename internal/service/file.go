@@ -337,10 +337,11 @@ func (s *FileService) DeleteFileCache(ctx context.Context, fileID string) {
 	engine.PDFText.Delete(strings.TrimSpace(fileID))
 }
 
-func (s *FileService) ImportLocalFile(ctx context.Context, path string) (*entity.File, error) {
+// ImportLocalPDFPath imports a local PDF path into the managed file cache.
+func (s *FileService) ImportLocalPDFPath(ctx context.Context, path string) (*entity.File, error) {
 	filePath := strings.TrimSpace(path)
 	if filePath == "" {
-		return nil, nil
+		return nil, fmt.Errorf("file path is required")
 	}
 
 	absPath, err := filepath.Abs(filePath)

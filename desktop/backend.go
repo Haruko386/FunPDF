@@ -22,13 +22,19 @@ const (
 )
 
 // newAPIProxy creates a reverse proxy that forwards API requests to the backend server.
-func newAPIProxy(backendAddr string) http.Handler {
+func newAPIProxy(backendAddr, desktopToken string) http.Handler {
 	target, err := url.Parse("http://" + backendAddr)
 	if err != nil {
 		panic(fmt.Errorf("parse backend address %q: %w", backendAddr, err))
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(target)
+	originalDirector := proxy.Director
+
+	proxy.Director = func(req *http.Request) {
+		originalDirector(req)
+		req.Header.Set("X-FunPDF-Desktop-Token", desktopToken)
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.URL.Path, "/api/") {
 			http.NotFound(w, r)
@@ -62,31 +68,33 @@ func listenBackend() (net.Listener, string, error) {
 }
 
 // startBackend initializes and starts the embedded backend HTTP server.
-func startBackend(ctx context.Context) (*http.Server, string, error) {
+func startBackend(ctx context.Context) (*http.Server, string, string, error) {
 	dbPath, err := desktopDatabasePath()
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
 	if err := funpdf.InitSqliteDatabase(dbPath); err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
 	defaultCacheDir, err := desktopCacheDir()
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
 	cacheDir, err := funpdf.EnsureRuntimeInfo(dbPath, defaultCacheDir)
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
+	desktopToken := common.GenerateUUID()
 	r := funpdf.NewHTTPHandlerWithRuntime(funpdf.RuntimeInfo{
 		Mode:         "desktop",
 		Database:     "sqlite",
 		DatabasePath: dbPath,
 		CacheDir:     cacheDir,
+		DesktopToken: desktopToken,
 	})
 
 	common.Banner()
@@ -96,7 +104,7 @@ func startBackend(ctx context.Context) (*http.Server, string, error) {
 
 	listener, backendAddr, err := listenBackend()
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
 	httpSvr := &http.Server{
@@ -116,5 +124,5 @@ func startBackend(ctx context.Context) (*http.Server, string, error) {
 
 	log.Printf("desktop backend listening on http://%s", backendAddr)
 
-	return httpSvr, backendAddr, nil
+	return httpSvr, backendAddr, desktopToken, nil
 }

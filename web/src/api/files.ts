@@ -84,6 +84,16 @@ export async function cachePdfFile(file: File, editorState: FunPdfEditorState) {
   return unwrapApiResponse<CachedFile>(response.data)
 }
 
+/** Desktop-only endpoint: imports a local PDF path into the cache library. */
+export async function importLocalPdfPath(path: string) {
+  const response = await http.post<CachedFile | { code: number; data: CachedFile }>(
+    '/files/import-path',
+    { path },
+    { timeout: 120_000 },
+  )
+  return unwrapApiResponse<CachedFile>(response.data)
+}
+
 /** Later Ctrl+S: update editor-state.json only. */
 export async function saveEditorState(
   fileId: string,

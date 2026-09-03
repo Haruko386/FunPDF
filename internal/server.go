@@ -44,7 +44,7 @@ func NewHTTPHandlerWithRuntime(info RuntimeInfo) *gin.Engine {
 
 	service.SetCacheDir(cacheDir)
 	fileSrv := service.NewFileService()
-	fileHandler := handler.NewFileHandlerWithService(fileSrv)
+	fileHandler := handler.NewFileHandlerWithService(fileSrv, info)
 
 	chatSessionSrv := service.NewChatSessionService()
 	chatSessionHandler := handler.NewChatSessionHandlerWithService(chatSessionSrv)

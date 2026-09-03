@@ -52,7 +52,7 @@ func (r *Router) Setup(e *gin.Engine) {
 		{
 			file.GET("", r.fileHandler.ListFiles)
 			file.POST("", r.fileHandler.UploadFile)
-			file.POST("/import-path", r.fileHandler.ImportLocalFilePath)
+			file.POST("/import-path", r.fileHandler.ImportLocalPDFPath)
 
 			file.PUT("/:file_id", r.fileHandler.AlertFile)
 			file.DELETE("/:file_id", r.fileHandler.DeleteFile)

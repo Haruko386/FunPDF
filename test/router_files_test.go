@@ -29,6 +29,7 @@ func TestRouterRegistersFileRoutes(t *testing.T) {
 	expected := []string{
 		"GET /api/files",
 		"POST /api/files",
+		"POST /api/files/import-path",
 		"PUT /api/files/:file_id",
 		"DELETE /api/files/:file_id",
 		"GET /api/files/:file_id/content",

@@ -34,7 +34,7 @@ func main() {
 	backendCtx, cancelBackend := context.WithCancel(context.Background())
 	app.shutdown = cancelBackend
 
-	backend, backendAddr, err := startBackend(backendCtx)
+	backend, backendAddr, desktopToken, err := startBackend(backendCtx)
 	if err != nil {
 		cancelBackend()
 		log.Fatalf("start desktop backend: %v", err)
@@ -48,7 +48,7 @@ func main() {
 		Height: 860,
 		AssetServer: &assetserver.Options{
 			Assets:  assets,
-			Handler: newAPIProxy(backendAddr),
+			Handler: newAPIProxy(backendAddr, desktopToken),
 		},
 		OnStartup:  app.Start,
 		OnShutdown: app.Shutdown,

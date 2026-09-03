@@ -12,12 +12,14 @@ import {
   cachePdfFile,
   getCachedEditorState,
   getCachedFileContent,
+  importLocalPdfPath,
   saveEditorState,
   deleteFileCache,
   type CachedFile,
 } from '@/api/files'
 import { apiErrorMessage } from '@/api/http'
 import { completeTranslation, normalizeTranslatorName } from '@/api/translators'
+import { onDesktopFileDrop } from '@/desktop/runtime'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = PdfWorker
 
@@ -138,6 +140,7 @@ let thumbnailGeneration = 0
 let cachedFileId = ''
 let cachedFileRevision = 0
 let cachedFileSha256 = ''
+let stopDesktopFileDrop: (() => void) | null = null
 let draggingMarker: { page: number; annotationId: string; pointerId: number; moved: boolean } | null = null
 
 function setMapElement<T extends Element>(map: Map<number, T>, page: number, element: unknown) {
@@ -648,6 +651,24 @@ async function handleDrop(event: DragEvent) {
   dragActive.value = false
   const file = event.dataTransfer?.files?.[0]
   if (file) await loadFile(file)
+}
+
+async function handleDesktopFileDrop(paths: string[]) {
+  const path = paths[0]
+  if (!path || loading.value) return
+
+  loading.value = true
+  dragActive.value = false
+  try {
+    const cached = await importLocalPdfPath(path)
+    window.dispatchEvent(new Event('funpdf:files-changed'))
+    await openCachedFile(cached)
+  } catch (error) {
+    console.error(error)
+    setStatus(apiErrorMessage(error, '桌面端本机路径导入接口尚未实现'))
+  } finally {
+    loading.value = false
+  }
 }
 
 async function setInitialFitWidth() {
@@ -1873,6 +1894,9 @@ onMounted(() => {
   document.addEventListener('selectionchange', handleSelectionChange)
   window.addEventListener('funpdf:open-cached-file', handleOpenCachedFile)
   window.addEventListener('funpdf:focus-annotation', handleFocusAnnotation)
+  stopDesktopFileDrop = onDesktopFileDrop(paths => {
+    void handleDesktopFileDrop(paths)
+  })
 })
 
 onBeforeUnmount(() => {
@@ -1881,6 +1905,7 @@ onBeforeUnmount(() => {
   document.removeEventListener('selectionchange', handleSelectionChange)
   window.removeEventListener('funpdf:open-cached-file', handleOpenCachedFile)
   window.removeEventListener('funpdf:focus-annotation', handleFocusAnnotation)
+  stopDesktopFileDrop?.()
   openTabs.value.forEach(stopAutosave)
   pageObserver?.disconnect()
   if (scrollFrame) cancelAnimationFrame(scrollFrame)

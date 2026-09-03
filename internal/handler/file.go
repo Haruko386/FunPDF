@@ -13,18 +13,30 @@ import (
 )
 
 type FileHandler struct {
-	fileSvr *service.FileService
+	fileSvr     *service.FileService
+	runtimeInfo RuntimeInfo
 }
 
 func NewFileHandler() *FileHandler {
-	return NewFileHandlerWithService(service.NewFileService())
+	return NewFileHandlerWithRuntime(RuntimeInfo{
+		Mode:     "server",
+		Database: "mysql",
+		CacheDir: "./Cache",
+	})
 }
 
-func NewFileHandlerWithService(fileSvr *service.FileService) *FileHandler {
-	if fileSvr == nil {
-		return &FileHandler{fileSvr: service.NewFileService()}
+func NewFileHandlerWithRuntime(info RuntimeInfo) *FileHandler {
+	return &FileHandler{
+		fileSvr:     service.NewFileService(),
+		runtimeInfo: info,
 	}
-	return &FileHandler{fileSvr: fileSvr}
+}
+
+func NewFileHandlerWithService(fileSvr *service.FileService, info RuntimeInfo) *FileHandler {
+	if fileSvr == nil {
+		fileSvr = service.NewFileService()
+	}
+	return &FileHandler{fileSvr: fileSvr, runtimeInfo: info}
 }
 
 // ListFiles list all files
@@ -367,8 +379,23 @@ func (h *FileHandler) DeleteFileCache(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// ImportLocalFilePath imports a desktop local PDF path into the file cache.
-func (h *FileHandler) ImportLocalFilePath(c *gin.Context) {
+// ImportLocalPDFPath imports a desktop local PDF path into the file cache.
+func (h *FileHandler) ImportLocalPDFPath(c *gin.Context) {
+	if h.runtimeInfo.Mode != "desktop" {
+		c.JSON(http.StatusNotFound, gin.H{
+			"code":    http.StatusNotFound,
+			"message": "not found",
+		})
+		return
+	}
+
+	if h.runtimeInfo.DesktopToken == "" || c.GetHeader("X-FunPDF-Desktop-Token") != h.runtimeInfo.DesktopToken {
+		c.JSON(http.StatusForbidden, gin.H{
+			"code":    http.StatusForbidden,
+			"message": "forbidden",
+		})
+		return
+	}
 	var req dto.ImportLocalFileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -378,7 +405,7 @@ func (h *FileHandler) ImportLocalFilePath(c *gin.Context) {
 		return
 	}
 
-	file, err := h.fileSvr.ImportLocalFile(c.Request.Context(), req.Path)
+	file, err := h.fileSvr.ImportLocalPDFPath(c.Request.Context(), req.Path)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"code":    http.StatusBadRequest,
