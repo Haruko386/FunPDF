@@ -366,3 +366,30 @@ func (h *FileHandler) DeleteFileCache(c *gin.Context) {
 
 	c.Status(http.StatusNoContent)
 }
+
+// ImportLocalFilePath imports a desktop local PDF path into the file cache.
+func (h *FileHandler) ImportLocalFilePath(c *gin.Context) {
+	var req dto.ImportLocalFileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    http.StatusBadRequest,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	file, err := h.fileSvr.ImportLocalFile(c.Request.Context(), req.Path)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    http.StatusBadRequest,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"code":    http.StatusCreated,
+		"message": "success",
+		"data":    file,
+	})
+}

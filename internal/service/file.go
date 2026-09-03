@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type FileService struct {
@@ -334,4 +335,69 @@ func (s *FileService) ListFileAlbums(ctx context.Context, fileID string) ([]enti
 // DeleteFileCache removes cached extracted text for a file.
 func (s *FileService) DeleteFileCache(ctx context.Context, fileID string) {
 	engine.PDFText.Delete(strings.TrimSpace(fileID))
+}
+
+func (s *FileService) ImportLocalFile(ctx context.Context, path string) (*entity.File, error) {
+	filePath := strings.TrimSpace(path)
+	if filePath == "" {
+		return nil, nil
+	}
+
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	fileInfo, err := os.Stat(absPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if fileInfo.IsDir() {
+		return nil, fmt.Errorf("file path is a directory")
+	}
+	if !fileInfo.Mode().IsRegular() {
+		return nil, fmt.Errorf("path is not a regular file")
+	}
+	if !strings.EqualFold(filepath.Ext(absPath), ".pdf") {
+		return nil, fmt.Errorf("only PDF files are supported")
+	}
+	if fileInfo.Size() > 200<<20 {
+		return nil, fmt.Errorf("file is too large")
+	}
+
+	source, err := os.Open(absPath)
+	if err != nil {
+		return nil, fmt.Errorf("open file failed: %w", err)
+	}
+	defer source.Close()
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	editorState := map[string]any{
+		"format":   "funpdf-editor-state",
+		"version":  1,
+		"saved_at": now,
+		"source": map[string]any{
+			"name":      filepath.Base(absPath),
+			"mime_type": "application/pdf",
+		},
+		"editor": map[string]any{
+			"annotations":  map[string]any{},
+			"rotation":     0,
+			"scale":        1.15,
+			"current_page": 1,
+		},
+	}
+
+	jsonData, err := json.Marshal(editorState)
+	if err != nil {
+		return nil, fmt.Errorf("marshal editor state failed: %w", err)
+	}
+
+	return s.UploadFile(ctx, &dto.UploadFileRequest{
+		FileName:    filepath.Base(absPath),
+		MimeType:    "application/pdf",
+		FileSize:    fileInfo.Size(),
+		EditorState: jsonData,
+	}, source)
 }
