@@ -610,6 +610,33 @@ function handleOpenCachedFile(event: Event) {
   if (file) void openCachedFile(file)
 }
 
+async function handleCachedFileDeleted(event: Event) {
+  const fileId = (event as CustomEvent<{ fileId?: string }>).detail?.fileId
+  if (!fileId) return
+
+  const closingTabs = openTabs.value.filter(tab => tab.cachedFileId === fileId)
+  const activeWillClose = cachedFileId === fileId || closingTabs.some(tab => tab.id === activeTabId.value)
+  if (closingTabs.length === 0 && !activeWillClose) return
+
+  const closedIndex = openTabs.value.findIndex(tab => tab.cachedFileId === fileId)
+  closingTabs.forEach(stopAutosave)
+  openTabs.value = openTabs.value.filter(tab => tab.cachedFileId !== fileId)
+  closingTabs.forEach(tab => {
+    window.dispatchEvent(new CustomEvent('funpdf:document-closed', { detail: { documentId: tab.id, fileId: tab.cachedFileId } }))
+  })
+
+  if (!activeWillClose) return
+
+  resetOpenedDocument()
+  activeTabId.value = ''
+  store.activeDocumentId = ''
+  store.activeCachedFileId = ''
+
+  const nextTab = openTabs.value[Math.max(0, Math.min(closedIndex, openTabs.value.length - 1))]
+  if (nextTab) await activateTab(nextTab.id)
+  setStatus('已关闭已删除的文件')
+}
+
 async function openPdfBytes(bytes: Uint8Array, documentName: string, restored?: ProjectEditorState) {
     const nextTask = pdfjsLib.getDocument({ data: bytes.slice() })
     const nextDocument = await nextTask.promise
@@ -1893,6 +1920,7 @@ onMounted(() => {
   window.addEventListener('beforeunload', handleBeforeUnload)
   document.addEventListener('selectionchange', handleSelectionChange)
   window.addEventListener('funpdf:open-cached-file', handleOpenCachedFile)
+  window.addEventListener('funpdf:cached-file-deleted', handleCachedFileDeleted)
   window.addEventListener('funpdf:focus-annotation', handleFocusAnnotation)
   stopDesktopFileDrop = onDesktopFileDrop(paths => {
     void handleDesktopFileDrop(paths)
@@ -1904,6 +1932,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
   document.removeEventListener('selectionchange', handleSelectionChange)
   window.removeEventListener('funpdf:open-cached-file', handleOpenCachedFile)
+  window.removeEventListener('funpdf:cached-file-deleted', handleCachedFileDeleted)
   window.removeEventListener('funpdf:focus-annotation', handleFocusAnnotation)
   stopDesktopFileDrop?.()
   openTabs.value.forEach(stopAutosave)

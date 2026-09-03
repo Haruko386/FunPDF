@@ -20,6 +20,10 @@ import { apiErrorMessage } from '@/api/http'
 import type { Album } from '@/api/types'
 
 type PanelView = 'albums' | 'library'
+type ThumbnailCropTarget = 'create' | 'album'
+
+const THUMBNAIL_WIDTH = 640
+const THUMBNAIL_HEIGHT = 480
 
 const view = ref<PanelView>('albums')
 const albums = ref<Album[]>([])
@@ -47,11 +51,24 @@ const createDescription = ref('')
 const createThumbnail = ref('')
 const createThumbnailName = ref('')
 const createError = ref('')
+const thumbnailCropOpen = ref(false)
+const thumbnailCropTarget = ref<ThumbnailCropTarget>('create')
+const thumbnailCropImage = ref('')
+const thumbnailCropName = ref('')
+const thumbnailCropScale = ref(1)
+const thumbnailCropOffsetX = ref(0)
+const thumbnailCropOffsetY = ref(0)
+const thumbnailCropError = ref('')
 
 const availableFiles = computed(() => {
   const linked = new Set(albumFiles.value.map(file => file.id))
   return libraryFiles.value.filter(file => !linked.has(file.id))
 })
+
+const thumbnailCropPreviewStyle = computed(() => ({
+  objectPosition: `${50 + thumbnailCropOffsetX.value / 2}% ${50 + thumbnailCropOffsetY.value / 2}%`,
+  transform: `scale(${thumbnailCropScale.value})`,
+}))
 
 function clearFeedback() {
   error.value = ''
@@ -97,8 +114,8 @@ async function loadMemberships(files: CachedFile[]) {
 
 function generatedThumbnail(name: string) {
   const canvas = document.createElement('canvas')
-  canvas.width = 640
-  canvas.height = 360
+  canvas.width = THUMBNAIL_WIDTH
+  canvas.height = THUMBNAIL_HEIGHT
   const context = canvas.getContext('2d')
   if (!context) return ''
   const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height)
@@ -114,44 +131,108 @@ function generatedThumbnail(name: string) {
   return canvas.toDataURL('image/png')
 }
 
-async function readImage(file?: File) {
-  if (!file) return
-  if (!['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type)) {
-    createError.value = '请选择 PNG、JPEG、GIF 或 WebP 图片'
-    return
-  }
-  if (file.size > 4 * 1024 * 1024) {
-    createError.value = '封面图片不能超过 4 MB'
-    return
-  }
-  createError.value = ''
-  createThumbnail.value = await new Promise<string>((resolve, reject) => {
+function readFileAsDataURL(file: File) {
+  return new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result || ''))
     reader.onerror = () => reject(reader.error)
     reader.readAsDataURL(file)
   })
-  createThumbnailName.value = file.name
 }
 
-async function readAlbumImage(file?: File) {
-  if (!file) return
+function validateThumbnailFile(file: File, target: ThumbnailCropTarget) {
   if (!['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type)) {
-    error.value = '璇烽€夋嫨 PNG銆丣PEG銆丟IF 鎴?WebP 鍥剧墖'
-    return
+    const message = '请选择 PNG、JPEG、GIF 或 WebP 图片'
+    if (target === 'create') createError.value = message
+    else error.value = message
+    return false
   }
   if (file.size > 4 * 1024 * 1024) {
-    error.value = '灏侀潰鍥剧墖涓嶈兘瓒呰繃 4 MB'
-    return
+    const message = '封面图片不能超过 4 MB'
+    if (target === 'create') createError.value = message
+    else error.value = message
+    return false
   }
+  return true
+}
+
+async function openThumbnailCropper(file: File | undefined, target: ThumbnailCropTarget) {
+  if (!file) return
+  if (!validateThumbnailFile(file, target)) return
+  createError.value = ''
   error.value = ''
-  albumDraft.value.thumbnail = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result || ''))
-    reader.onerror = () => reject(reader.error)
-    reader.readAsDataURL(file)
+  thumbnailCropTarget.value = target
+  thumbnailCropImage.value = await readFileAsDataURL(file)
+  thumbnailCropName.value = file.name
+  thumbnailCropScale.value = 1
+  thumbnailCropOffsetX.value = 0
+  thumbnailCropOffsetY.value = 0
+  thumbnailCropError.value = ''
+  thumbnailCropOpen.value = true
+}
+
+function readImage(file?: File) {
+  void openThumbnailCropper(file, 'create')
+}
+
+function readAlbumImage(file?: File) {
+  void openThumbnailCropper(file, 'album')
+}
+
+function closeThumbnailCropper() {
+  thumbnailCropOpen.value = false
+  thumbnailCropError.value = ''
+}
+
+function loadImage(source: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error('图片加载失败'))
+    image.src = source
   })
-  albumThumbnailName.value = file.name
+}
+
+async function renderCroppedThumbnail() {
+  const image = await loadImage(thumbnailCropImage.value)
+  const canvas = document.createElement('canvas')
+  canvas.width = THUMBNAIL_WIDTH
+  canvas.height = THUMBNAIL_HEIGHT
+  const context = canvas.getContext('2d')
+  if (!context) return ''
+
+  const baseScale = Math.max(canvas.width / image.naturalWidth, canvas.height / image.naturalHeight)
+  const drawScale = baseScale * thumbnailCropScale.value
+  const drawWidth = image.naturalWidth * drawScale
+  const drawHeight = image.naturalHeight * drawScale
+  const maxOffsetX = Math.max((drawWidth - canvas.width) / 2, 0)
+  const maxOffsetY = Math.max((drawHeight - canvas.height) / 2, 0)
+  const drawX = (canvas.width - drawWidth) / 2 - maxOffsetX * thumbnailCropOffsetX.value / 100
+  const drawY = (canvas.height - drawHeight) / 2 - maxOffsetY * thumbnailCropOffsetY.value / 100
+
+  context.fillStyle = '#f1f2f3'
+  context.fillRect(0, 0, canvas.width, canvas.height)
+  context.drawImage(image, drawX, drawY, drawWidth, drawHeight)
+  return canvas.toDataURL('image/png')
+}
+
+async function applyThumbnailCrop() {
+  thumbnailCropError.value = ''
+  try {
+    const thumbnail = await renderCroppedThumbnail()
+    if (!thumbnail) throw new Error('无法生成封面')
+    if (thumbnailCropTarget.value === 'create') {
+      createThumbnail.value = thumbnail
+      createThumbnailName.value = thumbnailCropName.value
+    } else {
+      albumDraft.value.thumbnail = thumbnail
+      albumThumbnailName.value = thumbnailCropName.value
+    }
+    closeThumbnailCropper()
+  } catch (cropError) {
+    console.error(cropError)
+    thumbnailCropError.value = '无法裁剪这张图片'
+  }
 }
 
 async function loadAll() {
@@ -422,6 +503,7 @@ async function permanentlyDelete(file: CachedFile) {
   clearFeedback()
   try {
     await deleteFile(file.id)
+    window.dispatchEvent(new CustomEvent('funpdf:cached-file-deleted', { detail: { fileId: file.id } }))
     libraryFiles.value = libraryFiles.value.filter(item => item.id !== file.id)
     albumFiles.value = albumFiles.value.filter(item => item.id !== file.id)
     delete fileAlbums.value[file.id]
@@ -434,6 +516,7 @@ async function permanentlyDelete(file: CachedFile) {
 }
 
 function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && thumbnailCropOpen.value) closeThumbnailCropper()
   if (event.key === 'Escape' && createOpen.value) closeCreate()
 }
 
@@ -637,6 +720,30 @@ onBeforeUnmount(() => {
         </section>
       </div>
     </Transition>
+    <Transition name="modal">
+      <div v-if="thumbnailCropOpen" class="modal-backdrop" role="presentation" @mousedown.self="closeThumbnailCropper">
+        <section class="create-modal thumbnail-crop-modal" role="dialog" aria-modal="true" aria-labelledby="thumbnail-crop-title">
+          <header>
+            <div><span class="modal-icon"><i class="fa-regular fa-image"></i></span><div><h2 id="thumbnail-crop-title">调整封面</h2><p>裁剪为 4:3 封面</p></div></div>
+            <button title="关闭" :disabled="actionBusy" @click="closeThumbnailCropper"><i class="fa-solid fa-xmark"></i></button>
+          </header>
+          <div class="modal-body">
+            <div class="thumbnail-crop-stage">
+              <img :src="thumbnailCropImage" alt="封面裁剪预览" :style="thumbnailCropPreviewStyle" />
+              <span class="thumbnail-crop-frame"></span>
+            </div>
+            <label>缩放<input v-model.number="thumbnailCropScale" type="range" min="1" max="3" step="0.01" /></label>
+            <label>横向位置<input v-model.number="thumbnailCropOffsetX" type="range" min="-100" max="100" step="1" /></label>
+            <label>纵向位置<input v-model.number="thumbnailCropOffsetY" type="range" min="-100" max="100" step="1" /></label>
+            <p v-if="thumbnailCropError" class="modal-error"><i class="fa-solid fa-circle-exclamation"></i>{{ thumbnailCropError }}</p>
+          </div>
+          <footer>
+            <button class="secondary" :disabled="actionBusy" @click="closeThumbnailCropper">取消</button>
+            <button class="primary" :disabled="actionBusy" @click="applyThumbnailCrop">使用封面</button>
+          </footer>
+        </section>
+      </div>
+    </Transition>
   </Teleport>
 </template>
 
@@ -646,8 +753,8 @@ button { border: 0; border-radius: 7px; background: #e8e8e8; color: #454a50; cur
 button:hover:not(:disabled) { background: #dedede; }
 button:disabled { opacity: .45; cursor: default; }
 .primary { background: #4b535c; color: white; }.primary:hover:not(:disabled) { background: #343b43; }
-.view-tabs { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; border-radius: 9px; background: #ededed; }
-.view-tabs button { height: 32px; display: flex; align-items: center; justify-content: center; gap: 6px; background: transparent; font-size: 11px; }
+.view-tabs { width: 100%; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding: 3px; border-radius: 9px; background: #ededed; }
+.view-tabs button { min-width: 0; height: 32px; display: flex; align-items: center; justify-content: center; gap: 6px; background: transparent; font-size: 11px; white-space: nowrap; }
 .view-tabs button.active { background: white; color: #262b30; box-shadow: 0 1px 4px rgb(0 0 0 / 9%); }
 .loading-row { padding: 8px; display: flex; justify-content: center; gap: 7px; color: #7b8187; font-size: 11px; }
 .feedback { margin: 0; padding: 8px 9px; display: flex; gap: 7px; border-radius: 7px; font-size: 11px; line-height: 1.45; }
@@ -655,15 +762,15 @@ button:disabled { opacity: .45; cursor: default; }
 .section-heading { min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .section-heading > div { min-width: 0; }.section-heading strong, .section-heading small { display: block; }.section-heading strong { font-size: 12px; }.section-heading small { margin-top: 2px; color: #92979c; font-size: 9px; }
 .compact { height: 29px; padding: 0 10px; font-size: 10px; }.compact i { margin-right: 5px; }
-.album-card { width: 100%; min-height: 55px; padding: 7px; display: grid; grid-template-columns: 44px minmax(0, 1fr) 14px; align-items: center; gap: 9px; text-align: left; background: transparent; }
+.album-card { width: 100%; min-height: 55px; padding: 7px; display: grid; grid-template-columns: 52px minmax(0, 1fr) 14px; align-items: center; gap: 9px; text-align: left; background: transparent; }
 .album-card:hover { background: #ededed !important; }.album-cover, .selected-cover { overflow: hidden; display: grid; place-items: center; background: #e6e8ea; color: #70777e; }
-.album-cover { width: 44px; height: 44px; border-radius: 8px; }.album-cover img, .selected-cover img { width: 100%; height: 100%; object-fit: cover; }
+.album-cover { width: 52px; aspect-ratio: 4 / 3; border-radius: 8px; }.album-cover img, .selected-cover img { width: 100%; height: 100%; object-fit: cover; }
 .album-copy, .file-copy { min-width: 0; }.album-copy strong, .album-copy small, .file-copy strong, .file-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .album-copy strong, .file-copy strong { font-size: 11px; }.album-copy small, .file-copy small { margin-top: 4px; color: #92979c; font-size: 9px; }.chevron { color: #a2a6aa; font-size: 9px; }
 .empty-state { min-height: 170px; padding: 22px 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #92979c; text-align: center; }
 .empty-state > i { margin-bottom: 12px; font-size: 28px; color: #b1b5b9; }.empty-state strong { color: #565c62; font-size: 12px; }.empty-state span { margin: 5px 0 14px; font-size: 10px; }.empty-state button { min-height: 31px; padding: 0 12px; font-size: 10px; }
 .back-button { align-self: flex-start; padding: 6px 8px; background: transparent; color: #6c7278; font-size: 10px; }.back-button i { margin-right: 6px; }
-.selected-header { padding: 3px 0 6px; display: flex; align-items: center; gap: 10px; }.selected-cover { width: 48px; height: 48px; flex: 0 0 48px; border-radius: 9px; }.selected-copy { min-width: 0; flex: 1; }.selected-header strong, .selected-header small { display: block; }.selected-header strong { overflow: hidden; color: #353a3f; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }.selected-header small { margin-top: 4px; color: #92979c; font-size: 10px; }.edit-album-button { width: 32px; height: 32px; flex: 0 0 32px; background: transparent; color: #66717c; font-size: 14px; }
+.selected-header { padding: 3px 0 6px; display: flex; align-items: center; gap: 10px; }.selected-cover { width: 64px; aspect-ratio: 4 / 3; flex: 0 0 64px; border-radius: 9px; }.selected-copy { min-width: 0; flex: 1; }.selected-header strong, .selected-header small { display: block; }.selected-header strong { overflow: hidden; color: #353a3f; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }.selected-header small { margin-top: 4px; color: #92979c; font-size: 10px; }.edit-album-button { width: 32px; height: 32px; flex: 0 0 32px; background: transparent; color: #66717c; font-size: 14px; }
 .album-description { margin: 0; padding: 9px 10px; border-left: 2px solid #d9dcdf; color: #73797f; font-size: 10px; line-height: 1.6; white-space: pre-wrap; }.album-editor { display: grid; gap: 8px; padding: 9px; border: 1px solid #e1e2e3; border-radius: 9px; background: #f5f5f5; }.delete-album-link { justify-self: start; padding: 5px 3px; background: transparent; color: #a14a4a; font-size: 9px; }.delete-album-link i { margin-right: 5px; }
 label { display: grid; gap: 4px; color: #777c81; font-size: 10px; }
 input, textarea, select { width: 100%; border: 1px solid #d8dadd; border-radius: 7px; padding: 8px; background: white; color: #40454a; outline: none; font-size: 11px; }
@@ -684,7 +791,12 @@ input:focus, textarea:focus, select:focus { border-color: #9299a1; box-shadow: 0
 .create-modal header { min-height: 76px; padding: 15px 17px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e7e7e7; }.create-modal header > div { display: flex; align-items: center; gap: 11px; }.create-modal header > button { width: 32px; height: 32px; background: transparent; }
 .modal-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 11px; background: #e8eaed; color: #4f5862; }.create-modal h2 { margin: 0; color: #30353a; font-size: 16px; }.create-modal header p { margin: 4px 0 0; color: #8b9095; font-size: 10px; }
 .modal-body { padding: 18px; display: grid; gap: 13px; }.modal-body label { gap: 6px; color: #555b61; font-size: 11px; font-weight: 600; }.modal-body label > span { color: #a54444; }.modal-body input, .modal-body textarea { padding: 10px; font-size: 12px; font-weight: 400; }
-.cover-field { margin-bottom: -7px; }.cover-picker { grid-template-columns: 82px minmax(0, 1fr); align-items: center; cursor: pointer; }.cover-picker > input { display: none; }.cover-preview { width: 82px; height: 50px; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 1px dashed #c8cbd0; border-radius: 8px; background: #f1f2f3; color: #8b9197; }.cover-preview img { width: 100%; height: 100%; object-fit: cover; }.cover-preview i { font-size: 15px; }.cover-preview small { font-size: 7px; font-weight: 400; }.cover-copy strong, .cover-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.cover-copy strong { color: #4c5258; font-size: 11px; }.cover-copy small { margin-top: 5px; color: #969ba0; font-size: 9px; font-weight: 400; }
+.cover-field { margin-bottom: -7px; }.cover-picker { grid-template-columns: 96px minmax(0, 1fr); align-items: center; cursor: pointer; }.cover-picker > input { display: none; }.cover-preview { width: 96px; aspect-ratio: 4 / 3; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 1px dashed #c8cbd0; border-radius: 8px; background: #f1f2f3; color: #8b9197; }.cover-preview img { width: 100%; height: 100%; object-fit: cover; }.cover-preview i { font-size: 15px; }.cover-preview small { font-size: 7px; font-weight: 400; }.cover-copy strong, .cover-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.cover-copy strong { color: #4c5258; font-size: 11px; }.cover-copy small { margin-top: 5px; color: #969ba0; font-size: 9px; font-weight: 400; }
+.thumbnail-crop-modal { width: min(560px, 100%); }
+.thumbnail-crop-stage { position: relative; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 12px; background: #111827; }
+.thumbnail-crop-stage img { width: 100%; height: 100%; display: block; object-fit: cover; transition: transform .12s ease, object-position .12s ease; transform-origin: center; }
+.thumbnail-crop-frame { position: absolute; inset: 0; border: 2px solid rgb(255 255 255 / 86%); border-radius: 12px; box-shadow: inset 0 0 0 999px rgb(15 23 42 / 10%); pointer-events: none; }
+.thumbnail-crop-modal input[type='range'] { padding: 0; accent-color: #4b535c; }
 .modal-error { margin: 0; display: flex; gap: 7px; color: #a13e3e; font-size: 10px; }.create-modal footer { padding: 13px 18px; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #e7e7e7; background: #f5f5f5; }.create-modal footer button { min-width: 82px; height: 34px; padding: 0 13px; font-size: 11px; }.create-modal footer i { margin-right: 6px; }.secondary { background: #e5e5e5; }
 .modal-enter-active, .modal-leave-active { transition: opacity .18s ease; }.modal-enter-active .create-modal, .modal-leave-active .create-modal { transition: transform .18s ease, opacity .18s ease; }.modal-enter-from, .modal-leave-to { opacity: 0; }.modal-enter-from .create-modal, .modal-leave-to .create-modal { opacity: 0; transform: translateY(10px) scale(.98); }
 @media (max-width: 520px) { .modal-backdrop { padding: 12px; }.create-modal { border-radius: 13px; }.modal-body { padding: 15px; } }
