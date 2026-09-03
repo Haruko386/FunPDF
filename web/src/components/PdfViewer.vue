@@ -1304,7 +1304,7 @@ function endMarkerDrag(event: PointerEvent, page: number, annotation: PdfAnnotat
     suppressMarkerClick = true
     window.setTimeout(() => { suppressMarkerClick = false }, 0)
   }
-  if (!moved && mode !== 'anchor') {
+  if (!moved && mode === 'free') {
     openNoteEditor(page, annotation.type === 'note' ? annotation.point : { x: 0, y: 0 }, viewportPoint(annotation.type === 'note' ? annotation.point : { x: 0, y: 0 }, page), annotation)
   }
 }
