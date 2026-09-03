@@ -516,10 +516,10 @@ async function permanentlyDelete(file: CachedFile) {
 }
 
 function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape' && thumbnailCropOpen.value) {
-      closeThumbnailCropper()
-      return
-    }
+  if (event.key === 'Escape' && thumbnailCropOpen.value) {
+    closeThumbnailCropper()
+    return
+  }
   if (event.key === 'Escape' && createOpen.value) closeCreate()
 }
 
