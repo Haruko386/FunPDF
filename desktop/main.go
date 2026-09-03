@@ -50,8 +50,9 @@ func main() {
 			Assets:  assets,
 			Handler: newAPIProxy(backendAddr, desktopToken),
 		},
-		OnStartup:  app.Start,
-		OnShutdown: app.Shutdown,
+		SingleInstanceLock: newSingleInstanceLock(app),
+		OnStartup:          app.Start,
+		OnShutdown:         app.Shutdown,
 	})
 
 	if err != nil {
