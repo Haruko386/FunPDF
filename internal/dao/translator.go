@@ -5,8 +5,8 @@ import (
 	"FunPDF/internal/entity"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"log"
 
 	"gorm.io/gorm"
 )
@@ -45,10 +45,8 @@ func (d *TranslatorDAO) CreateTranslator(ctx context.Context, db *gorm.DB, trans
 	var existing entity.Translator
 	err := db.WithContext(ctx).Where("name = ?", translatorName).First(&existing).Error
 	if err == nil {
-		return nil, fmt.Errorf("translators with name %s already exists", translatorName)
-	} // FIXME: remove this `if` in some fix PR
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, err
+		log.Printf("translator %s already exists", translatorName)
+		return &existing, nil
 	}
 
 	var translator entity.Translator
