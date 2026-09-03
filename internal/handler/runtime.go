@@ -4,6 +4,8 @@ import (
 	"FunPDF/internal/common"
 	"FunPDF/internal/dto"
 	"FunPDF/internal/service"
+	"errors"
+	"io/fs"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -54,8 +56,12 @@ func (h *RuntimeHandler) OpenPath(c *gin.Context) {
 	}
 	path, err := h.runtimeSvr.OpenPath(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
+		status := http.StatusBadRequest
+		if errors.Is(err, fs.ErrNotExist) {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{
+			"code": status,
 			"msg":  err.Error(),
 		})
 		return

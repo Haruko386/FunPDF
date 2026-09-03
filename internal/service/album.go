@@ -35,7 +35,7 @@ func (s *AlbumService) CreateAlbum(ctx context.Context, req *dto.CreateAlbumRequ
 	albumID := common.GenerateUUIDv7()
 	albumName := strings.TrimSpace(req.Name)
 	if albumName == "" {
-		return nil, errors.New("empty album name")
+		return nil, ErrAlbumNameRequired
 	}
 
 	// check thumbnail size
@@ -76,8 +76,11 @@ func (s *AlbumService) UpdateAlbum(ctx context.Context, req *dto.UpdateAlbumRequ
 	req.Description = strings.TrimSpace(req.Description)
 
 	affected, err := s.albumDAO.UpdateAlbum(ctx, dao.DB, req)
-	if err != nil || affected == 0 {
+	if err != nil {
 		return fmt.Errorf("update album failed: %w", err)
+	}
+	if affected == 0 {
+		return ErrAlbumNotFound
 	}
 
 	return nil

@@ -3,10 +3,12 @@ package handler
 import (
 	"FunPDF/internal/dto"
 	"FunPDF/internal/service"
+	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type ChatSessionHandler struct {
@@ -45,8 +47,12 @@ func (h *ChatSessionHandler) SetupChatSession(c *gin.Context) {
 
 	session, err := h.chatSessionSvr.SetupChatSession(c.Request.Context(), providerID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
+		status := http.StatusInternalServerError
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{
+			"code": status,
 			"msg":  err.Error(),
 		})
 		return
@@ -79,17 +85,18 @@ func (h *ChatSessionHandler) DeleteSession(c *gin.Context) {
 	}
 
 	if err := h.chatSessionSvr.DeleteSession(c.Request.Context(), providerID, sessionID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
+		status := http.StatusInternalServerError
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{
+			"code": status,
 			"msg":  err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"msg":  "success",
-	})
+	c.Status(http.StatusNoContent)
 }
 
 func (h *ChatSessionHandler) SendMessages(c *gin.Context) {
@@ -157,8 +164,12 @@ func (h *ChatSessionHandler) SendMessages(c *gin.Context) {
 
 	resp, err := h.chatSessionSvr.SendMessages(c.Request.Context(), providerID, sessionID, &req, nil)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
+		status := http.StatusInternalServerError
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{
+			"code": status,
 			"msg":  err.Error(),
 		})
 		return

@@ -3,6 +3,7 @@ package handler
 import (
 	"FunPDF/internal/dto"
 	"FunPDF/internal/service"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -50,8 +51,12 @@ func (h *AlbumHandler) CreateAlbum(c *gin.Context) {
 	// create the album
 	album, err := h.albumSvr.CreateAlbum(c.Request.Context(), &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
+		status := http.StatusInternalServerError
+		if errors.Is(err, service.ErrAlbumNameRequired) {
+			status = http.StatusBadRequest
+		}
+		c.JSON(status, gin.H{
+			"code": status,
 			"msg":  err.Error(),
 		})
 		return
@@ -115,8 +120,12 @@ func (h *AlbumHandler) UpdateAlbum(c *gin.Context) {
 
 	err := h.albumSvr.UpdateAlbum(c.Request.Context(), &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
+		status := http.StatusInternalServerError
+		if errors.Is(err, service.ErrAlbumNotFound) {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{
+			"code": status,
 			"msg":  err.Error(),
 		})
 		return

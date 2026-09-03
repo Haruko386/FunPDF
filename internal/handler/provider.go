@@ -62,8 +62,8 @@ func (h *ProviderHandler) CreateProvider(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
+	c.JSON(http.StatusCreated, gin.H{
+		"code": http.StatusCreated,
 		"data": provider,
 		"msg":  "success",
 	})
@@ -122,8 +122,5 @@ func (h *ProviderHandler) DeleteProvider(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"msg":  "success",
-	})
+	c.Status(http.StatusNoContent)
 }

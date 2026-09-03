@@ -264,12 +264,12 @@ func (s *FileService) UploadFile(ctx context.Context, req *dto.UploadFileRequest
 func (s *FileService) AlertFile(ctx context.Context, fileID string, req *dto.AlertFileRequest) (*entity.File, error) {
 	fileName := strings.TrimSpace(req.Name)
 	if fileName == "" {
-		return nil, fmt.Errorf("file name is empty")
+		return nil, ErrFileNameRequired
 	}
 
 	mimeType := strings.TrimSpace(req.MimeType)
 	if mimeType == "" {
-		return nil, fmt.Errorf("mime_type is empty")
+		return nil, ErrFileMimeRequired
 	}
 
 	req.Name = fileName
@@ -286,7 +286,7 @@ func (s *FileService) AlertFile(ctx context.Context, fileID string, req *dto.Ale
 func (s *FileService) DeleteFile(ctx context.Context, fileID string) (int64, error) {
 	file, err := s.fileDAO.GetFileByID(ctx, fileID, dao.DB)
 	if err != nil {
-		return 0, fmt.Errorf("get file failed: %v", err)
+		return 0, fmt.Errorf("get file failed: %w", err)
 	}
 
 	projectDir := strings.TrimSpace(file.FileStorageKey)

@@ -129,10 +129,7 @@ func (h *ModelHandler) DeleteProviderModels(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"msg":  "success",
-	})
+	c.Status(http.StatusNoContent)
 }
 
 // ChatToModel chat to model
@@ -231,9 +228,9 @@ func (h *ModelHandler) ChatToModel(c *gin.Context) {
 	if err != nil {
 		status := http.StatusInternalServerError
 		switch {
-		case errors.Is(err, service.ErrModelNameRequired), errors.Is(err, service.ErrUnsupportedProvider):
+		case errors.Is(err, service.ErrModelNameRequired), errors.Is(err, service.ErrUnsupportedProvider), errors.Is(err, service.ErrProviderIDRequired):
 			status = http.StatusBadRequest
-		case errors.Is(err, service.ErrProviderIDRequired), errors.Is(err, service.ErrProviderNotFound):
+		case errors.Is(err, service.ErrProviderNotFound):
 			status = http.StatusNotFound
 		}
 		c.JSON(status, gin.H{

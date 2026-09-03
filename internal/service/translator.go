@@ -85,7 +85,7 @@ func (s *TranslatorService) Translate(ctx context.Context, req *dto.TranslateReq
 	translator, err := s.translatorFct.GetTranslator(ctx, dao.DB, translatorName, region)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", errors.New("translators not found")
+			return "", ErrTranslatorNotFound
 		}
 		return "", err
 	}

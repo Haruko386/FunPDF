@@ -41,7 +41,7 @@ func (d *ChatSessionDAO) DeleteSession(ctx context.Context, db *gorm.DB, provide
 			return result.Error
 		}
 		if result.RowsAffected != 1 {
-			return fmt.Errorf("session %s not found", sessionID)
+			return fmt.Errorf("session %s not found: %w", sessionID, gorm.ErrRecordNotFound)
 		}
 		if err := tx.Where("session_id = ?", sessionID).Delete(&entity.Dialog{}).Error; err != nil {
 			return err
@@ -60,7 +60,7 @@ func (d *ChatSessionDAO) GetChatSession(ctx context.Context, db *gorm.DB, sessio
 		Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("Session %s not found", sessionID)
+			return nil, fmt.Errorf("Session %s not found: %w", sessionID, gorm.ErrRecordNotFound)
 		}
 		return nil, err
 	}

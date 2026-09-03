@@ -4,10 +4,12 @@ import (
 	"FunPDF/internal/dto"
 	"FunPDF/internal/service"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type FileHandler struct {
@@ -56,8 +58,12 @@ func (h *FileHandler) GetFile(c *gin.Context) {
 
 	filePath, err := h.fileSvr.GetFile(c.Request.Context(), fileID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
+		status := http.StatusInternalServerError
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{
+			"code": status,
 			"msg":  err.Error(),
 		})
 		return
@@ -80,8 +86,12 @@ func (h *FileHandler) GetFileState(c *gin.Context) {
 
 	jsonFile, err := h.fileSvr.GetFileState(c.Request.Context(), fileID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
+		status := http.StatusInternalServerError
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{
+			"code": status,
 			"msg":  err.Error(),
 		})
 		return
@@ -107,8 +117,12 @@ func (h *FileHandler) GetFileThumbnail(c *gin.Context) {
 
 	thumbnail, err := h.fileSvr.GetFileThumbnail(c.Request.Context(), fileID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
+		status := http.StatusInternalServerError
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{
+			"code": status,
 			"msg":  err.Error(),
 		})
 		return
@@ -144,7 +158,10 @@ func (h *FileHandler) SaveFile(c *gin.Context) {
 	ok, err := h.fileSvr.SaveFile(c.Request.Context(), fileID, &req)
 	if err != nil {
 		status := http.StatusInternalServerError
-		if strings.Contains(err.Error(), "revision") {
+		switch {
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			status = http.StatusNotFound
+		case strings.Contains(err.Error(), "revision"):
 			status = http.StatusConflict
 		}
 		c.JSON(status, gin.H{
@@ -172,8 +189,13 @@ func (h *FileHandler) UploadFile(c *gin.Context) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 200<<20)
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
+		status := http.StatusBadRequest
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			status = http.StatusRequestEntityTooLarge
+		}
+		c.JSON(status, gin.H{
+			"code": status,
 			"msg":  err.Error(),
 		})
 		return
@@ -249,8 +271,15 @@ func (h *FileHandler) AlertFile(c *gin.Context) {
 
 	file, err := h.fileSvr.AlertFile(c.Request.Context(), fileID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
+		status := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, service.ErrFileNameRequired), errors.Is(err, service.ErrFileMimeRequired):
+			status = http.StatusBadRequest
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{
+			"code": status,
 			"msg":  err.Error(),
 		})
 		return
@@ -275,8 +304,12 @@ func (h *FileHandler) DeleteFile(c *gin.Context) {
 	}
 	affected, err := h.fileSvr.DeleteFile(c.Request.Context(), fileID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
+		status := http.StatusInternalServerError
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{
+			"code": status,
 			"msg":  err.Error(),
 		})
 		return
@@ -330,8 +363,5 @@ func (h *FileHandler) DeleteFileCache(c *gin.Context) {
 
 	h.fileSvr.DeleteFileCache(c.Request.Context(), fileID)
 
-	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"msg":  "success",
-	})
+	c.Status(http.StatusNoContent)
 }
