@@ -69,6 +69,7 @@ export interface NoteAnnotation extends AnnotationBase {
   text: string
   quoteText?: string
   quoteRects?: PdfRect[]
+  railTop?: number
   translations?: NoteTranslation[]
 }
 
