@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"FunPDF/internal/common"
 	"FunPDF/internal/dao"
 	"FunPDF/internal/engine"
 	"FunPDF/internal/entity"
@@ -9,6 +10,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -40,10 +42,11 @@ func NewHTTPHandlerWithRuntime(info RuntimeInfo) *gin.Engine {
 		info.CacheDir = cacheDir
 	}
 
-	fileSrv := service.NewFileServiceWithCacheDir(cacheDir)
-	fileHandler := handler.NewFileHandlerWithService(fileSrv)
+	service.SetCacheDir(cacheDir)
+	fileSrv := service.NewFileService()
+	fileHandler := handler.NewFileHandlerWithService(fileSrv, info)
 
-	chatSessionSrv := service.NewChatSessionServiceWithCacheDir(cacheDir)
+	chatSessionSrv := service.NewChatSessionService()
 	chatSessionHandler := handler.NewChatSessionHandlerWithService(chatSessionSrv)
 
 	albumHandler := handler.NewAlbumHandler()
@@ -91,6 +94,7 @@ func StartPDFTextCleaner(ctx context.Context) {
 	}()
 }
 
+// AutoMigrateDatabase applies database schema migrations.
 func AutoMigrateDatabase() error {
 	return dao.DB.AutoMigrate(
 		&entity.File{},
@@ -101,9 +105,11 @@ func AutoMigrateDatabase() error {
 		&entity.Provider{},
 		&entity.ProviderModel{},
 		&entity.ChatSession{},
-		&entity.Dialog{})
+		&entity.Dialog{},
+		&entity.RuntimeInfo{})
 }
 
+// InitSqliteDatabase initializes SQLite and runs migrations.
 func InitSqliteDatabase(dbPath string) error {
 	err := dao.InitSqlite(dbPath)
 	if err != nil {
@@ -114,4 +120,39 @@ func InitSqliteDatabase(dbPath string) error {
 		return err
 	}
 	return nil
+}
+
+// EnsureRuntimeInfo makes sure the single runtime info row (desktop mode)
+// exists and returns the effective cache dir, creating it when necessary.
+func EnsureRuntimeInfo(dbPath string, fallbackCacheDir string) (string, error) {
+	info, err := dao.NewRuntimeInfoDAO().Get(context.Background(), dao.DB)
+	if err != nil {
+		return "", err
+	}
+	if info.ID == 0 {
+		info = entity.RuntimeInfo{
+			ID:           1,
+			Mode:         "desktop",
+			Version:      common.GetVersion(),
+			Database:     "sqlite",
+			DatabasePath: dbPath,
+			CacheDir:     fallbackCacheDir,
+		}
+	} else {
+		info.Mode = "desktop"
+		info.Version = common.GetVersion()
+		info.Database = "sqlite"
+		info.DatabasePath = dbPath
+		if strings.TrimSpace(info.CacheDir) == "" {
+			info.CacheDir = fallbackCacheDir
+		}
+	}
+
+	if err := os.MkdirAll(info.CacheDir, 0755); err != nil {
+		return "", err
+	}
+	if err := dao.NewRuntimeInfoDAO().Save(context.Background(), dao.DB, &info); err != nil {
+		return "", err
+	}
+	return info.CacheDir, nil
 }

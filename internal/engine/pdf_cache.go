@@ -25,6 +25,7 @@ func NewPDFTextCache(ttl time.Duration) *PDFTextCache {
 	}
 }
 
+// Get returns cached PDF text when it exists and has not expired.
 func (c *PDFTextCache) Get(fileID string) (string, bool) {
 	c.mu.RLock()
 	item, ok := c.items[fileID]
@@ -41,6 +42,7 @@ func (c *PDFTextCache) Get(fileID string) (string, bool) {
 	return item.Text, true
 }
 
+// Set stores PDF text in the in-memory cache.
 func (c *PDFTextCache) Set(fileID, text string) {
 	c.mu.Lock()
 	c.items[fileID] = PDFTextCacheItem{

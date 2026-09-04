@@ -27,8 +27,8 @@ func (h *ModelHandler) ListProviderModel(c *gin.Context) {
 	providerID := strings.TrimSpace(c.Param("provider_id"))
 	if providerID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "provider id is empty",
+			"code":    http.StatusBadRequest,
+			"message": "provider id is empty",
 		})
 		return
 	}
@@ -36,16 +36,16 @@ func (h *ModelHandler) ListProviderModel(c *gin.Context) {
 	list, err := h.modelSvr.ListProviderModel(c.Request.Context(), providerID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
-			"msg":  err.Error(),
+			"code":    http.StatusInternalServerError,
+			"message": err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"data": list,
-		"msg":  "success",
+		"code":    http.StatusOK,
+		"data":    list,
+		"message": "success",
 	})
 }
 
@@ -54,8 +54,8 @@ func (h *ModelHandler) SaveProviderModels(c *gin.Context) {
 	providerID := strings.TrimSpace(c.Param("provider_id"))
 	if providerID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "provider id is empty",
+			"code":    http.StatusBadRequest,
+			"message": "provider id is empty",
 		})
 		return
 	}
@@ -63,16 +63,16 @@ func (h *ModelHandler) SaveProviderModels(c *gin.Context) {
 	var req dto.SaveModelsRequest
 	if err := c.ShouldBind(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  err.Error(),
+			"code":    http.StatusBadRequest,
+			"message": err.Error(),
 		})
 		return
 	}
 
 	if req.Names == nil || len(*req.Names) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "names is empty",
+			"code":    http.StatusBadRequest,
+			"message": "names is empty",
 		})
 		return
 	}
@@ -80,25 +80,26 @@ func (h *ModelHandler) SaveProviderModels(c *gin.Context) {
 	list, err := h.modelSvr.SaveProviderModels(c.Request.Context(), providerID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
-			"msg":  err.Error(),
+			"code":    http.StatusInternalServerError,
+			"message": err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"data": list,
-		"msg":  "success",
+		"code":    http.StatusOK,
+		"data":    list,
+		"message": "success",
 	})
 }
 
+// DeleteProviderModels handles deleting provider model selections.
 func (h *ModelHandler) DeleteProviderModels(c *gin.Context) {
 	providerID := strings.TrimSpace(c.Param("provider_id"))
 	if providerID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "provider id is empty",
+			"code":    http.StatusBadRequest,
+			"message": "provider id is empty",
 		})
 		return
 	}
@@ -106,16 +107,16 @@ func (h *ModelHandler) DeleteProviderModels(c *gin.Context) {
 	var req dto.DeleteModelsRequest
 	if err := c.ShouldBind(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  err.Error(),
+			"code":    http.StatusBadRequest,
+			"message": err.Error(),
 		})
 		return
 	}
 
 	if req.IDs == nil || len(*req.IDs) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "ids is empty",
+			"code":    http.StatusBadRequest,
+			"message": "ids is empty",
 		})
 		return
 	}
@@ -123,16 +124,13 @@ func (h *ModelHandler) DeleteProviderModels(c *gin.Context) {
 	err := h.modelSvr.DeleteProviderModels(c.Request.Context(), providerID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
-			"msg":  err.Error(),
+			"code":    http.StatusInternalServerError,
+			"message": err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"msg":  "success",
-	})
+	c.Status(http.StatusNoContent)
 }
 
 // ChatToModel chat to model
@@ -140,8 +138,8 @@ func (h *ModelHandler) ChatToModel(c *gin.Context) {
 	providerID := strings.TrimSpace(c.Param("provider_id"))
 	if providerID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "provider id is empty",
+			"code":    http.StatusBadRequest,
+			"message": "provider id is empty",
 		})
 		return
 	}
@@ -149,8 +147,8 @@ func (h *ModelHandler) ChatToModel(c *gin.Context) {
 	var req dto.ChatRequest
 	if err := c.ShouldBind(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  err.Error(),
+			"code":    http.StatusBadRequest,
+			"message": err.Error(),
 		})
 		return
 	}
@@ -231,31 +229,32 @@ func (h *ModelHandler) ChatToModel(c *gin.Context) {
 	if err != nil {
 		status := http.StatusInternalServerError
 		switch {
-		case errors.Is(err, service.ErrModelNameRequired), errors.Is(err, service.ErrUnsupportedProvider):
+		case errors.Is(err, service.ErrModelNameRequired), errors.Is(err, service.ErrUnsupportedProvider), errors.Is(err, service.ErrProviderIDRequired):
 			status = http.StatusBadRequest
-		case errors.Is(err, service.ErrProviderIDRequired), errors.Is(err, service.ErrProviderNotFound):
+		case errors.Is(err, service.ErrProviderNotFound):
 			status = http.StatusNotFound
 		}
 		c.JSON(status, gin.H{
-			"code": status,
-			"msg":  err.Error(),
+			"code":    status,
+			"message": err.Error(),
 		})
 		return
 	}
 	resp = *result
 	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"data": resp,
-		"msg":  "success",
+		"code":    http.StatusOK,
+		"data":    resp,
+		"message": "success",
 	})
 }
 
+// ListSupportedModels handles fetching models supported by a provider.
 func (h *ModelHandler) ListSupportedModels(c *gin.Context) {
 	providerID := strings.TrimSpace(c.Param("provider_id"))
 	if providerID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "provider id is empty",
+			"code":    http.StatusBadRequest,
+			"message": "provider id is empty",
 		})
 		return
 	}
@@ -267,15 +266,15 @@ func (h *ModelHandler) ListSupportedModels(c *gin.Context) {
 			status = http.StatusNotFound
 		}
 		c.JSON(status, gin.H{
-			"code": status,
-			"msg":  err.Error(),
+			"code":    status,
+			"message": err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"data": result,
-		"msg":  "success",
+		"code":    http.StatusOK,
+		"data":    result,
+		"message": "success",
 	})
 }

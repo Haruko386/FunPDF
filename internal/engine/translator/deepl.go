@@ -142,12 +142,14 @@ func (d *DeeplTranslator) Translate(ctx context.Context, from, to, q string, par
 	return dst, nil
 }
 
+// Healthy checks whether the translator has enough configuration to run.
 func (d *DeeplTranslator) Healthy(ctx context.Context) bool {
 	_, err := d.Translate(ctx, "en", "zh", "hi", nil)
 	common.Info(fmt.Sprintf("please read %s for more info", deeplAPIReference))
 	return err == nil
 }
 
+// Name returns the translator provider name.
 func (d *DeeplTranslator) Name() string {
 	return "deepl"
 }

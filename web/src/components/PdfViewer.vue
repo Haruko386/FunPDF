@@ -12,12 +12,14 @@ import {
   cachePdfFile,
   getCachedEditorState,
   getCachedFileContent,
+  importLocalPdfPath,
   saveEditorState,
   deleteFileCache,
   type CachedFile,
 } from '@/api/files'
 import { apiErrorMessage } from '@/api/http'
 import { completeTranslation, normalizeTranslatorName } from '@/api/translators'
+import { onDesktopFileDrop } from '@/desktop/runtime'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = PdfWorker
 
@@ -138,7 +140,9 @@ let thumbnailGeneration = 0
 let cachedFileId = ''
 let cachedFileRevision = 0
 let cachedFileSha256 = ''
-let draggingMarker: { page: number; annotationId: string; pointerId: number; moved: boolean } | null = null
+let stopDesktopFileDrop: (() => void) | null = null
+let draggingMarker: { page: number; annotationId: string; pointerId: number; mode: 'free' | 'anchor' | 'rail'; moved: boolean; offsetY: number } | null = null
+let suppressMarkerClick = false
 
 function setMapElement<T extends Element>(map: Map<number, T>, page: number, element: unknown) {
   if (element instanceof Element) map.set(page, element as T)
@@ -607,6 +611,33 @@ function handleOpenCachedFile(event: Event) {
   if (file) void openCachedFile(file)
 }
 
+async function handleCachedFileDeleted(event: Event) {
+  const fileId = (event as CustomEvent<{ fileId?: string }>).detail?.fileId
+  if (!fileId) return
+
+  const closingTabs = openTabs.value.filter(tab => tab.cachedFileId === fileId)
+  const activeWillClose = cachedFileId === fileId || closingTabs.some(tab => tab.id === activeTabId.value)
+  if (closingTabs.length === 0 && !activeWillClose) return
+
+  const closedIndex = openTabs.value.findIndex(tab => tab.cachedFileId === fileId)
+  closingTabs.forEach(stopAutosave)
+  openTabs.value = openTabs.value.filter(tab => tab.cachedFileId !== fileId)
+  closingTabs.forEach(tab => {
+    window.dispatchEvent(new CustomEvent('funpdf:document-closed', { detail: { documentId: tab.id, fileId: tab.cachedFileId } }))
+  })
+
+  if (!activeWillClose) return
+
+  resetOpenedDocument()
+  activeTabId.value = ''
+  store.activeDocumentId = ''
+  store.activeCachedFileId = ''
+
+  const nextTab = openTabs.value[Math.max(0, Math.min(closedIndex, openTabs.value.length - 1))]
+  if (nextTab) await activateTab(nextTab.id)
+  setStatus('已关闭已删除的文件')
+}
+
 async function openPdfBytes(bytes: Uint8Array, documentName: string, restored?: ProjectEditorState) {
     const nextTask = pdfjsLib.getDocument({ data: bytes.slice() })
     const nextDocument = await nextTask.promise
@@ -648,6 +679,24 @@ async function handleDrop(event: DragEvent) {
   dragActive.value = false
   const file = event.dataTransfer?.files?.[0]
   if (file) await loadFile(file)
+}
+
+async function handleDesktopFileDrop(paths: string[]) {
+  const path = paths[0]
+  if (!path || loading.value) return
+
+  loading.value = true
+  dragActive.value = false
+  try {
+    const cached = await importLocalPdfPath(path)
+    window.dispatchEvent(new Event('funpdf:files-changed'))
+    await openCachedFile(cached)
+  } catch (error) {
+    console.error(error)
+    setStatus(apiErrorMessage(error, '桌面端本机路径导入接口尚未实现'))
+  } finally {
+    loading.value = false
+  }
 }
 
 async function setInitialFitWidth() {
@@ -781,8 +830,10 @@ async function renderPage(pageNumber: number, generation = renderGeneration) {
 
 function safeExternalUrl(value: unknown) {
   if (typeof value !== 'string' || !value) return ''
+  const trimmed = value.trim()
+  if (!/^(https?:|mailto:|tel:)/i.test(trimmed)) return ''
   try {
-    const url = new URL(value, window.location.href)
+    const url = new URL(trimmed)
     return ['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol) ? url.href : ''
   } catch {
     return ''
@@ -817,6 +868,53 @@ async function renderPageLinks(page: PdfPage, pageNumber: number, viewport: Page
   pageLinks.value = { ...pageLinks.value, [pageNumber]: links }
 }
 
+function pdfDestinationName(value: unknown) {
+  if (typeof value === 'string') return value
+  if (value && typeof value === 'object' && 'name' in value && typeof value.name === 'string') return value.name
+  return ''
+}
+
+function pdfDestinationNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function pdfDestinationViewportY(destination: unknown[], page: number) {
+  const viewport = pageViewport(page)
+  if (!viewport) return undefined
+
+  const kind = pdfDestinationName(destination[1])
+  const pdfY =
+    kind === 'XYZ'
+      ? pdfDestinationNumber(destination[3])
+      : kind === 'FitH' || kind === 'FitBH'
+        ? pdfDestinationNumber(destination[2])
+        : kind === 'FitR'
+          ? pdfDestinationNumber(destination[5])
+          : undefined
+
+  if (pdfY === undefined) return undefined
+  return viewport.convertToViewportPoint(0, pdfY)[1]
+}
+
+async function scrollToPdfDestination(page: number, destination: unknown[]) {
+  const stage = stageRef.value
+  const pageElement = pageElements.get(page)
+  if (!stage || !pageElement) {
+    scrollToPage(page)
+    return
+  }
+
+  setCurrentPageFromView(page)
+  await renderPage(page)
+  await nextTick()
+
+  const targetY = pdfDestinationViewportY(destination, page)
+  const top = targetY === undefined
+    ? pageElement.offsetTop - 22
+    : pageElement.offsetTop + targetY - stage.clientHeight * 0.2
+  stage.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' })
+}
+
 async function activatePdfLink(link: PageLink, event: MouseEvent) {
   if (link.url) return
   event.preventDefault()
@@ -843,7 +941,7 @@ async function activatePdfLink(link: PageLink, event: MouseEvent) {
     const pageIndex = typeof target === 'number'
       ? target
       : await pdfDocument.value.getPageIndex(target)
-    store.currentPage = pageIndex + 1
+    await scrollToPdfDestination(pageIndex + 1, destination)
   } catch (error) {
     console.error(error)
     setStatus('无法跳转到这个文档位置')
@@ -1108,19 +1206,12 @@ function noteMarkers(page: number) {
     .filter(annotation => store.featureFlags.translation || annotation.text || !annotation.translations?.length)
     .map(annotation => {
       const quoteRects = annotation.quoteRects ?? []
-      const firstQuoteRect = quoteRects[0]
-      const lastQuoteRect = quoteRects[quoteRects.length - 1]
-      const start = firstQuoteRect ? viewportPoint(firstQuoteRect.start, page) : undefined
-      const end = lastQuoteRect ? viewportPoint(lastQuoteRect.end, page) : undefined
-      const point = start && end
-        ? {
-            x: Math.min(Math.max(end.x + 4, 8), Math.max(viewport.width - 8, 8)),
-            y: Math.min(Math.max((start.y + end.y) / 2, 10), Math.max(viewport.height - 10, 10)),
-          }
-        : viewportPoint(annotation.point, page)
+      const point = noteAnchorPoint(annotation, page)
       const isTranslation = Boolean(annotation.translations?.length && !annotation.text)
-      const railTop = Math.min(Math.max(point.y - 13, 10), Math.max(viewport.height - 38, 10))
-      const railSide = quoteRects.length && point.x < viewport.width / 2 ? 'left' : 'right'
+      const railTop = quoteRects.length && Number.isFinite(annotation.railTop)
+        ? clamp(annotation.railTop ?? 10, 10, maxRailTop)
+        : clamp(point.y - 13, 10, maxRailTop)
+      const railSide = quoteRects.length ? 'right' : (point.x < viewport.width / 2 ? 'left' : 'right')
       const railLeft = railSide === 'left' ? leftRailX : rightRailX
       return {
         annotation,
@@ -1161,25 +1252,44 @@ function noteMarkers(page: number) {
 function moveAnnotationPoint(page: number, annotationId: string, local: PdfPoint) {
   const annotation = annotationsForPage(page).find(item => item.id === annotationId)
   if (annotation?.type !== 'note') return
-  annotation.point = pdfPoint(local, page)
+  const quoteRects = annotation.quoteRects ?? []
+  const constrainedLocal = quoteRects.length ? constrainQuoteAnchor(local, quoteRects, page) : local
+  annotation.point = pdfPoint(constrainedLocal, page)
   store.dirty = true
   updateHistoryState()
   drawAnnotations(page)
 }
 
+function moveAnnotationRail(page: number, annotationId: string, localTop: number) {
+  const annotation = annotationsForPage(page).find(item => item.id === annotationId)
+  const viewport = pageViewport(page)
+  if (annotation?.type !== 'note' || !annotation.quoteRects?.length || !viewport) return
+  annotation.railTop = clamp(localTop, 10, Math.max(viewport.height - 38, 10))
+  store.dirty = true
+  updateHistoryState()
+}
+
 function startMarkerDrag(event: PointerEvent, page: number, annotation: PdfAnnotation) {
   if (annotation.type !== 'note') return
-  if (annotation.quoteRects?.length) return
   const target = event.currentTarget as HTMLElement
   target.setPointerCapture(event.pointerId)
-  draggingMarker = { page, annotationId: annotation.id, pointerId: event.pointerId, moved: false }
+  draggingMarker = { page, annotationId: annotation.id, pointerId: event.pointerId, mode: annotation.quoteRects?.length ? 'rail' : 'free', moved: false, offsetY: event.offsetY }
+  pushHistory()
+}
+
+function startAnchorDrag(event: PointerEvent, page: number, annotation: PdfAnnotation) {
+  if (annotation.type !== 'note' || !annotation.quoteRects?.length) return
+  const target = event.currentTarget as HTMLElement
+  target.setPointerCapture(event.pointerId)
+  draggingMarker = { page, annotationId: annotation.id, pointerId: event.pointerId, mode: 'anchor', moved: false, offsetY: 0 }
   pushHistory()
 }
 
 function moveMarkerDrag(event: PointerEvent, page: number) {
   if (!draggingMarker || draggingMarker.page !== page || draggingMarker.pointerId !== event.pointerId) return
   const local = localPointerPosition(event, page)
-  moveAnnotationPoint(page, draggingMarker.annotationId, local)
+  if (draggingMarker.mode === 'rail') moveAnnotationRail(page, draggingMarker.annotationId, local.y - draggingMarker.offsetY)
+  else moveAnnotationPoint(page, draggingMarker.annotationId, local)
   draggingMarker.moved = true
 }
 
@@ -1188,10 +1298,20 @@ function endMarkerDrag(event: PointerEvent, page: number, annotation: PdfAnnotat
   const target = event.currentTarget as HTMLElement
   if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId)
   const moved = draggingMarker.moved
+  const mode = draggingMarker.mode
   draggingMarker = null
-  if (!moved) {
+  if (moved) {
+    suppressMarkerClick = true
+    window.setTimeout(() => { suppressMarkerClick = false }, 0)
+  }
+  if (!moved && mode === 'free') {
     openNoteEditor(page, annotation.type === 'note' ? annotation.point : { x: 0, y: 0 }, viewportPoint(annotation.type === 'note' ? annotation.point : { x: 0, y: 0 }, page), annotation)
   }
+}
+
+function clickMarker(page: number, annotation: PdfAnnotation, local: PdfPoint) {
+  if (suppressMarkerClick || annotation.type !== 'note') return
+  if (annotation.quoteRects?.length) openNoteEditor(page, annotation.point, local, annotation)
 }
 
 function openNoteEditor(page: number, point: PdfPoint, local: PdfPoint, annotation?: PdfAnnotation) {
@@ -1234,10 +1354,7 @@ function openSelectedTextNoteEditor() {
   })
   const lastClientRect = textSelection.value.rects[textSelection.value.rects.length - 1]
   const lastRect = viewportRect(lastClientRect, page)
-  const local = {
-    x: Math.min(lastRect.right + 18, (pageViewport(page)?.width ?? lastRect.right) - 16),
-    y: Math.max(lastRect.top + (lastRect.bottom - lastRect.top) / 2, 16),
-  }
+  const local = constrainQuoteAnchor(quoteDefaultAnchor(rects, page), rects, page)
   const point = pdfPoint(local, page)
   noteEditor.value = {
     open: true,
@@ -1248,8 +1365,8 @@ function openSelectedTextNoteEditor() {
     quoteText: textSelection.value.text,
     quoteRects: rects,
     translations: [],
-    left: Math.min(local.x + 16, Math.max((pageViewport(page)?.width ?? 320) - 280, 8)),
-    top: Math.min(local.y + 16, Math.max((pageViewport(page)?.height ?? 220) - 190, 8)),
+    left: Math.min(lastRect.right + 18, Math.max((pageViewport(page)?.width ?? 320) - 280, 8)),
+    top: Math.min(Math.max(lastRect.top, 8), Math.max((pageViewport(page)?.height ?? 220) - 190, 8)),
     dragging: false,
     dragOffsetX: 0,
     dragOffsetY: 0,
@@ -1288,10 +1405,7 @@ async function translateSelectedText() {
   const lastRect = viewportRect(lastClientRect, page)
   const popupLeft = Math.min(Math.max(lastRect.right + 18, 8), Math.max(viewport.width - 286, 8))
   const popupWidth = Math.max(Math.min(320, viewport.width - popupLeft - 8), 220)
-  const markerLocal = {
-    x: Math.min(Math.max(lastRect.right + 26, 22), viewport.width - 28),
-    y: Math.min(Math.max(lastRect.bottom + 5, 18), viewport.height - 18),
-  }
+  const markerLocal = constrainQuoteAnchor(quoteDefaultAnchor(quoteRects, page), quoteRects, page)
   translationPopup.value = {
     open: true,
     page,
@@ -1415,6 +1529,82 @@ function saveNote() {
   noteEditor.value.open = false
   updateHistoryState()
   drawAnnotations(page)
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
+}
+
+function quoteBounds(quoteRects: PdfRect[], page: number) {
+  const points = quoteRects.flatMap(rect => [viewportPoint(rect.start, page), viewportPoint(rect.end, page)])
+  if (!points.length) return undefined
+  const left = Math.min(...points.map(point => point.x))
+  const right = Math.max(...points.map(point => point.x))
+  const top = Math.min(...points.map(point => point.y))
+  const bottom = Math.max(...points.map(point => point.y))
+  return { left, right, top, bottom }
+}
+
+function quoteDefaultAnchor(quoteRects: PdfRect[], page: number) {
+  const viewport = pageViewport(page)
+  const firstQuoteRect = quoteRects[0]
+  const lastQuoteRect = quoteRects[quoteRects.length - 1]
+  if (!viewport || !firstQuoteRect || !lastQuoteRect) return { x: 0, y: 0 }
+  const start = viewportPoint(firstQuoteRect.start, page)
+  const end = viewportPoint(lastQuoteRect.end, page)
+  return {
+    x: clamp(end.x + 4, 8, Math.max(viewport.width - 8, 8)),
+    y: clamp((start.y + end.y) / 2, 10, Math.max(viewport.height - 10, 10)),
+  }
+}
+
+function constrainQuoteAnchor(local: PdfPoint, quoteRects: PdfRect[], page: number) {
+  const bounds = quoteBounds(quoteRects, page)
+  if (!bounds) return local
+  return {
+    x: clamp(local.x, bounds.left, bounds.right),
+    y: clamp(local.y, bounds.top, bounds.bottom),
+  }
+}
+
+function noteAnchorPoint(annotation: Extract<PdfAnnotation, { type: 'note' }>, page: number) {
+  const quoteRects = annotation.quoteRects ?? []
+  if (!quoteRects.length) return viewportPoint(annotation.point, page)
+  const stored = viewportPoint(annotation.point, page)
+  const bounds = quoteBounds(quoteRects, page)
+  if (!bounds) return quoteDefaultAnchor(quoteRects, page)
+  const defaultAnchor = quoteDefaultAnchor(quoteRects, page)
+  const storedInsideBounds = stored.x >= bounds.left && stored.x <= bounds.right && stored.y >= bounds.top && stored.y <= bounds.bottom
+  return storedInsideBounds ? stored : constrainQuoteAnchor(defaultAnchor, quoteRects, page)
+}
+
+function deleteNoteAnnotation(page: number, annotationId: string) {
+  const pageAnnotations = annotations[page] ?? []
+  const index = pageAnnotations.findIndex(annotation => annotation.id === annotationId && annotation.type === 'note')
+  if (index < 0) return
+
+  pushHistory()
+  pageAnnotations.splice(index, 1)
+  if (pageAnnotations.length === 0) delete annotations[page]
+  if (noteEditor.value.annotationId === annotationId) noteEditor.value.open = false
+  if (focusedAnnotationId.value === annotationId) focusedAnnotationId.value = ''
+  updateHistoryState()
+  drawAnnotations(page)
+  setStatus('便签已删除')
+}
+
+function deleteCurrentNote() {
+  if (!noteEditor.value.annotationId) {
+    noteEditor.value.open = false
+    return
+  }
+  deleteNoteAnnotation(noteEditor.value.page, noteEditor.value.annotationId)
+}
+
+function handleDeleteNote(event: Event) {
+  const detail = (event as CustomEvent<{ annotationId?: string; page?: number }>).detail
+  if (!detail?.annotationId || !detail.page) return
+  deleteNoteAnnotation(detail.page, detail.annotationId)
 }
 
 function startNoteEditorDrag(event: PointerEvent) {
@@ -1606,14 +1796,7 @@ function annotationViewportPoint(annotation: PdfAnnotation, page: number) {
   if (!viewport) return undefined
   const quoteRects = annotation.quoteRects ?? []
   if (!quoteRects.length) return viewportPoint(annotation.point, page)
-  const firstQuoteRect = quoteRects[0]
-  const lastQuoteRect = quoteRects[quoteRects.length - 1]
-  const start = viewportPoint(firstQuoteRect.start, page)
-  const end = viewportPoint(lastQuoteRect.end, page)
-  return {
-    x: Math.min(Math.max(end.x + 4, 8), Math.max(viewport.width - 8, 8)),
-    y: Math.min(Math.max((start.y + end.y) / 2, 10), Math.max(viewport.height - 10, 10)),
-  }
+  return noteAnchorPoint(annotation, page)
 }
 
 async function focusAnnotation(annotationId: string, page: number) {
@@ -1872,7 +2055,12 @@ onMounted(() => {
   window.addEventListener('beforeunload', handleBeforeUnload)
   document.addEventListener('selectionchange', handleSelectionChange)
   window.addEventListener('funpdf:open-cached-file', handleOpenCachedFile)
+  window.addEventListener('funpdf:cached-file-deleted', handleCachedFileDeleted)
   window.addEventListener('funpdf:focus-annotation', handleFocusAnnotation)
+  window.addEventListener('funpdf:delete-note', handleDeleteNote)
+  stopDesktopFileDrop = onDesktopFileDrop(paths => {
+    void handleDesktopFileDrop(paths)
+  })
 })
 
 onBeforeUnmount(() => {
@@ -1880,7 +2068,10 @@ onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
   document.removeEventListener('selectionchange', handleSelectionChange)
   window.removeEventListener('funpdf:open-cached-file', handleOpenCachedFile)
+  window.removeEventListener('funpdf:cached-file-deleted', handleCachedFileDeleted)
   window.removeEventListener('funpdf:focus-annotation', handleFocusAnnotation)
+  window.removeEventListener('funpdf:delete-note', handleDeleteNote)
+  stopDesktopFileDrop?.()
   openTabs.value.forEach(stopAutosave)
   pageObserver?.disconnect()
   if (scrollFrame) cancelAnimationFrame(scrollFrame)
@@ -1998,6 +2189,10 @@ onBeforeUnmount(() => {
               :class="{ 'translation-anchor': marker.isTranslation, active: focusedAnnotationId === marker.annotation.id }"
               :style="{ left: `${marker.point.x}px`, top: `${marker.point.y}px` }"
               aria-hidden="true"
+              @pointerdown.stop.prevent="startAnchorDrag($event, layout.pageNumber, marker.annotation)"
+              @pointermove.stop.prevent="moveMarkerDrag($event, layout.pageNumber)"
+              @pointerup.stop.prevent="endMarkerDrag($event, layout.pageNumber, marker.annotation)"
+              @pointercancel.stop.prevent="endMarkerDrag($event, layout.pageNumber, marker.annotation)"
             ></span>
             <button
               class="note-marker"
@@ -2008,7 +2203,7 @@ onBeforeUnmount(() => {
               @pointermove.stop.prevent="moveMarkerDrag($event, layout.pageNumber)"
               @pointerup.stop.prevent="endMarkerDrag($event, layout.pageNumber, marker.annotation)"
               @pointercancel.stop.prevent="endMarkerDrag($event, layout.pageNumber, marker.annotation)"
-              @click.stop.prevent="marker.annotation.quoteRects?.length && openNoteEditor(layout.pageNumber, marker.annotation.point, marker.point, marker.annotation)"
+              @click.stop.prevent="clickMarker(layout.pageNumber, marker.annotation, marker.point)"
             >{{ marker.label }}</button>
           </template>
 
@@ -2076,7 +2271,11 @@ onBeforeUnmount(() => {
                 <p>{{ item.translatedText }}</p>
               </article>
             </section>
-            <div class="note-editor-actions"><button class="secondary" @click="noteEditor.open = false">取消</button><button @click="saveNote">保存</button></div>
+            <div class="note-editor-actions">
+              <button v-if="noteEditor.annotationId" class="danger" @click="deleteCurrentNote"><i class="fa-regular fa-trash-can"></i>删除</button>
+              <button class="secondary" @click="noteEditor.open = false">取消</button>
+              <button @click="saveNote">保存</button>
+            </div>
           </div>
         </article>
       </div>
@@ -2124,7 +2323,9 @@ onBeforeUnmount(() => {
 .note-connector line { stroke: #b7791f; stroke-width: 1.8; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
 .note-connector.translation-connector line { stroke: #2563eb; }
 .note-connector.active line { stroke-width: 2.6; stroke-dasharray: none; }
-.text-anchor { position: absolute; z-index: 4; width: 10px; height: 10px; transform: translate(-50%, -50%); border: 2px solid #b7791f; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 0 4px rgb(245 158 11 / 22%); pointer-events: none; }
+.text-anchor { position: absolute; z-index: 4; width: 10px; height: 10px; transform: translate(-50%, -50%); border: 2px solid #b7791f; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 0 4px rgb(245 158 11 / 22%); pointer-events: none; touch-action: none; }
+.page-shell[data-active-tool='cursor'] .text-anchor { pointer-events: auto; cursor: grab; }
+.page-shell[data-active-tool='cursor'] .text-anchor:active { cursor: grabbing; }
 .text-anchor.translation-anchor { border-color: #1d4ed8; background: #3b82f6; box-shadow: 0 0 0 4px rgb(37 99 235 / 22%); }
 .text-anchor.active { box-shadow: 0 0 0 6px rgb(245 158 11 / 34%), 0 0 0 12px rgb(245 158 11 / 14%); }
 .text-anchor.translation-anchor.active { box-shadow: 0 0 0 6px rgb(37 99 235 / 34%), 0 0 0 12px rgb(37 99 235 / 14%); }
@@ -2139,6 +2340,7 @@ onBeforeUnmount(() => {
 .page-shell[data-active-tool='cursor'] .note-marker.translation-marker { cursor: pointer; }
 .page-shell[data-active-tool='cursor'] .note-marker:not(.rail-marker).translation-marker { cursor: grab; }
 .page-shell[data-active-tool='cursor'] .note-marker:not(.rail-marker).translation-marker:active { cursor: grabbing; }
+.page-shell[data-active-tool='cursor'] .note-marker.rail-marker { cursor: ns-resize; touch-action: none; }
 .selection-toolbar { position: absolute; z-index: 6; transform: translateX(-50%); height: 36px; display: flex; align-items: center; padding: 3px; border: 1px solid #c8c8c8; border-radius: 7px; background: rgb(250 250 250 / 98%); box-shadow: 0 5px 16px rgb(0 0 0 / 18%); }
 .selection-toolbar button { height: 28px; padding: 0 9px; display: flex; align-items: center; gap: 6px; border: 0; border-radius: 5px; background: transparent; color: #3f4449; cursor: pointer; font-size: 12px; white-space: nowrap; }
 .selection-toolbar button:hover { background: #e8e8e8; }
@@ -2167,6 +2369,8 @@ onBeforeUnmount(() => {
 .note-editor-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 8px; }
 .note-editor button { border: 0; border-radius: 6px; padding: 6px 11px; background: #6a5b48; color: white; cursor: pointer; font-size: 12px; }
 .note-editor button.secondary { background: transparent; color: #785b35; }
+.note-editor button.danger { margin-right: auto; background: #f3e7e7; color: #a04444; }
+.note-editor button.danger i { margin-right: 5px; }
 .empty-state { margin: 13vh auto 0; text-align: center; color: #70757a; max-width: 500px; }
 .empty-icon { width: 76px; height: 76px; margin: 0 auto 20px; border-radius: 20px; background: #f7f7f7; border: 1px solid #d5d5d5; display: grid; place-items: center; font-size: 30px; color: #5f6469; box-shadow: 0 10px 30px rgb(0 0 0 / 6%); }
 .empty-state h1 { margin: 0 0 10px; font-size: 23px; color: #33373c; }

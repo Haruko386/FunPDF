@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// loadTranslatorConfig loads a translator configuration file from disk.
 func loadTranslatorConfig(name string) (json.RawMessage, error) {
 	data, err := conf.ReadTranslatorConfig(name)
 	if err != nil {
@@ -16,6 +17,7 @@ func loadTranslatorConfig(name string) (json.RawMessage, error) {
 	return data, nil
 }
 
+// TranslatorConfigURL resolves the endpoint URL for a translator and region.
 func TranslatorConfigURL(translatorName, region string) (string, error) {
 	config, err := loadTranslatorConfig(translatorName)
 	if err != nil {

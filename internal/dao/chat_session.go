@@ -34,6 +34,7 @@ func (d *ChatSessionDAO) SetupChatSession(ctx context.Context, db *gorm.DB, prov
 	return sessionID, nil
 }
 
+// DeleteSession deletes a chat session by provider and session ID.
 func (d *ChatSessionDAO) DeleteSession(ctx context.Context, db *gorm.DB, providerID, sessionID string) error {
 	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		result := tx.Where("id = ? AND provider_id = ?", sessionID, providerID).Delete(&entity.ChatSession{})
@@ -41,7 +42,7 @@ func (d *ChatSessionDAO) DeleteSession(ctx context.Context, db *gorm.DB, provide
 			return result.Error
 		}
 		if result.RowsAffected != 1 {
-			return fmt.Errorf("session %s not found", sessionID)
+			return fmt.Errorf("session %s not found: %w", sessionID, gorm.ErrRecordNotFound)
 		}
 		if err := tx.Where("session_id = ?", sessionID).Delete(&entity.Dialog{}).Error; err != nil {
 			return err
@@ -60,13 +61,14 @@ func (d *ChatSessionDAO) GetChatSession(ctx context.Context, db *gorm.DB, sessio
 		Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("Session %s not found", sessionID)
+			return nil, fmt.Errorf("Session %s not found: %w", sessionID, gorm.ErrRecordNotFound)
 		}
 		return nil, err
 	}
 	return &chatSession, nil
 }
 
+// GetDialogStatus queries the status of a dialog record.
 func (d *ChatSessionDAO) GetDialogStatus(ctx context.Context, db *gorm.DB, dialogID string) (status int, err error) {
 	err = db.WithContext(ctx).Model(&entity.Dialog{}).
 		Select("status").
@@ -81,6 +83,7 @@ func (d *ChatSessionDAO) GetDialogStatus(ctx context.Context, db *gorm.DB, dialo
 	return status, nil
 }
 
+// UpdateDialogStatus updates the status of a dialog record.
 func (d *ChatSessionDAO) UpdateDialogStatus(ctx context.Context, db *gorm.DB, dialogID string, status int) (err error) {
 	err = db.WithContext(ctx).Model(&entity.Dialog{}).
 		Where("id = ?", dialogID).

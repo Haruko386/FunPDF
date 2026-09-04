@@ -106,6 +106,12 @@ function focusAnnotation(annotationId: string, page: number) {
   }))
 }
 
+function deleteNote(annotationId: string, page: number) {
+  window.dispatchEvent(new CustomEvent('funpdf:delete-note', {
+    detail: { annotationId, page },
+  }))
+}
+
 async function loadRuntimeInfo() {
   try {
     runtimeInfo.value = await getRuntimeInfo()
@@ -237,30 +243,46 @@ onMounted(() => {
           <div v-if="store.noteCount === 0" class="empty">选中文字后点击便签，或直接使用便签工具在页面上添加独立便签。</div>
           <template v-else>
             <h3 class="comment-group-title">批注</h3>
-            <button
+            <article
               v-for="comment in store.noteComments.filter(item => item.text)"
               :key="comment.id"
               class="comment-item"
+              role="button"
+              tabindex="0"
               @click="focusAnnotation(comment.id, comment.page)"
+              @keyup.enter="focusAnnotation(comment.id, comment.page)"
             >
-              <span>第 {{ comment.page }} 页</span>
+              <span class="comment-meta">
+                <span>第 {{ comment.page }} 页</span>
+                <button title="删除便签" @click.stop="deleteNote(comment.id, comment.page)" @keyup.enter.stop>
+                  <i class="fa-regular fa-trash-can"></i>
+                </button>
+              </span>
               <strong>{{ comment.text }}</strong>
               <small v-if="comment.quoteText">{{ comment.quoteText }}</small>
-            </button>
+            </article>
             <div v-if="!store.noteComments.some(item => item.text)" class="empty compact-empty">暂无批注便签。</div>
 
             <h3 class="comment-group-title">翻译</h3>
             <template v-for="comment in store.noteComments" :key="`${comment.id}-translations`">
-              <button
+              <article
                 v-for="translation in comment.translations ?? []"
                 :key="translation.id"
                 class="comment-item translation-item"
+                role="button"
+                tabindex="0"
                 @click="focusAnnotation(comment.id, comment.page)"
+                @keyup.enter="focusAnnotation(comment.id, comment.page)"
               >
-                <span>第 {{ comment.page }} 页</span>
+                <span class="comment-meta">
+                  <span>第 {{ comment.page }} 页</span>
+                  <button title="删除便签" @click.stop="deleteNote(comment.id, comment.page)" @keyup.enter.stop>
+                    <i class="fa-regular fa-trash-can"></i>
+                  </button>
+                </span>
                 <strong>{{ translation.translatedText }}</strong>
                 <small>{{ translation.sourceText }}</small>
-              </button>
+              </article>
             </template>
             <div v-if="!store.noteComments.some(item => item.translations?.length)" class="empty compact-empty">暂无翻译便签。</div>
           </template>
@@ -371,6 +393,10 @@ onMounted(() => {
 .comment-item { width: 100%; margin-top: 10px; padding: 11px; border: 1px solid #e1e1e1; border-radius: 9px; background: #f8f8f8; color: #3f4449; cursor: pointer; text-align: left; }
 .comment-item:hover { background: #eeeeee; }
 .comment-item span { display: block; margin-bottom: 6px; color: #858a90; font-size: 11px; }
+.comment-item .comment-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.comment-item .comment-meta span { margin: 0; }
+.comment-item .comment-meta button { width: 24px; height: 24px; flex: 0 0 24px; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: #9b5d5d; cursor: pointer; }
+.comment-item .comment-meta button:hover { background: #f1dddd; color: #8c3838; }
 .comment-item strong { display: -webkit-box; overflow: hidden; color: #353a40; font-size: 13px; line-height: 1.45; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 .comment-item small { display: -webkit-box; overflow: hidden; margin-top: 7px; padding-top: 7px; border-top: 1px solid #e4e4e4; color: #8a6d21; font-size: 11px; line-height: 1.45; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .comment-group-title { margin: 14px 0 4px; color: #555b62; font-size: 12px; }

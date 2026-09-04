@@ -3,6 +3,7 @@ package handler
 import (
 	"FunPDF/internal/dto"
 	"FunPDF/internal/service"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -57,8 +58,8 @@ func (h *TranslatorHandler) CreateTranslator(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    http.StatusOK,
+	c.JSON(http.StatusCreated, gin.H{
+		"code":    http.StatusCreated,
 		"data":    translator,
 		"message": "success",
 	})
@@ -86,8 +87,12 @@ func (h *TranslatorHandler) Translate(c *gin.Context) {
 
 	dst, err := h.transSvr.Translate(c.Request.Context(), req, translatorName)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    http.StatusInternalServerError,
+		status := http.StatusInternalServerError
+		if errors.Is(err, service.ErrTranslatorNotFound) {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{
+			"code":    status,
 			"message": err.Error(),
 		})
 		return

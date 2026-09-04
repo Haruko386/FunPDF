@@ -14,6 +14,7 @@ type AliyunModel struct {
 	BaseModel
 }
 
+// Chat sends messages to the provider chat completion API.
 func (a *AliyunModel) Chat(ctx context.Context, modelCfg *ModelConfig, chatCfg *ChatConfig, messages []Message, modelName string, sender func(*string, *string) error) (*dto.ChatResponse, error) {
 	url := fmt.Sprintf("%s/%s", a.BaseURL, a.URLSuffix)
 
@@ -45,6 +46,7 @@ func (a *AliyunModel) Chat(ctx context.Context, modelCfg *ModelConfig, chatCfg *
 	return doNoneStreamChat(a.HTTPClient, req, a.Name())
 }
 
+// ListModels fetches model metadata from the provider API.
 func (a *AliyunModel) ListModels(ctx context.Context, modelCfg *ModelConfig) (*[]dto.ListModelsResponse, error) {
 	url := fmt.Sprintf("%s/%s", a.BaseURL, a.URLSuffix)
 
@@ -100,6 +102,7 @@ func (a *AliyunModel) ListModels(ctx context.Context, modelCfg *ModelConfig) (*[
 	return &models, nil
 }
 
+// Name returns the model provider name.
 func (a *AliyunModel) Name() string {
 	return "Aliyun"
 }

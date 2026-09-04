@@ -26,12 +26,14 @@ var (
 	logger *zap.Logger
 )
 
+// SyncLog flushes buffered log entries.
 func SyncLog() {
 	if logger != nil {
 		_ = logger.Sync()
 	}
 }
 
+// Fatal writes a fatal log entry and terminates the process.
 func Fatal(msg string, fields ...zap.Field) {
 	if logger == nil {
 		panic("logger not initialized")
@@ -39,6 +41,7 @@ func Fatal(msg string, fields ...zap.Field) {
 	logger.Fatal(msg, fields...)
 }
 
+// Info writes an informational log entry.
 func Info(msg string, fields ...zap.Field) {
 	if logger == nil {
 		return
@@ -46,6 +49,7 @@ func Info(msg string, fields ...zap.Field) {
 	logger.Info(msg, fields...)
 }
 
+// Debug writes a debug log entry.
 func Debug(msg string, fields ...zap.Field) {
 	if logger == nil {
 		return
@@ -53,6 +57,7 @@ func Debug(msg string, fields ...zap.Field) {
 	logger.Debug(msg, fields...)
 }
 
+// Warn writes a warning log entry.
 func Warn(msg string, fields ...zap.Field) {
 	if logger == nil {
 		return

@@ -90,6 +90,7 @@ func (d *FileDAO) SaveThumbnail(ctx context.Context, fileID string, db *gorm.DB,
 	return result.RowsAffected, result.Error
 }
 
+// UploadFile inserts a file record.
 func (d *FileDAO) UploadFile(ctx context.Context, file *entity.File, db *gorm.DB) (int64, error) {
 	result := db.WithContext(ctx).Model(&entity.File{}).
 		Create(file)

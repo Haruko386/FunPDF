@@ -6,6 +6,7 @@ type Model struct {
 	BaseModel
 }
 
+// TableName returns the database table name for models.
 func (Model) TableName() string {
 	return "models"
 }

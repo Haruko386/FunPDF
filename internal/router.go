@@ -45,12 +45,14 @@ func (r *Router) Setup(e *gin.Engine) {
 		{
 			runtime.GET("/info", r.runtimeHandler.Info)
 			runtime.POST("/open-path", r.runtimeHandler.OpenPath)
+			runtime.POST("/cache-dir/select", r.runtimeHandler.SelectCacheDir)
 		}
 
 		file := api.Group("/files")
 		{
 			file.GET("", r.fileHandler.ListFiles)
 			file.POST("", r.fileHandler.UploadFile)
+			file.POST("/import-path", r.fileHandler.ImportLocalPDFPath)
 
 			file.PUT("/:file_id", r.fileHandler.AlertFile)
 			file.DELETE("/:file_id", r.fileHandler.DeleteFile)

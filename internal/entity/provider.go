@@ -9,6 +9,7 @@ type Provider struct {
 	BaseModel
 }
 
+// TableName returns the database table name for providers.
 func (Provider) TableName() string {
 	return "provider"
 }

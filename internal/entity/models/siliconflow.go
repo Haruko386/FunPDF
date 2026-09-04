@@ -14,6 +14,7 @@ type SiliconFlowModel struct {
 	BaseModel
 }
 
+// Chat sends messages to the provider chat completion API.
 func (s *SiliconFlowModel) Chat(ctx context.Context, modelCfg *ModelConfig, chatCfg *ChatConfig, messages []Message, modelName string, sender func(*string, *string) error) (*dto.ChatResponse, error) {
 	url := fmt.Sprintf("%s/%s", s.BaseURL, s.URLSuffix)
 
@@ -45,6 +46,7 @@ func (s *SiliconFlowModel) Chat(ctx context.Context, modelCfg *ModelConfig, chat
 	return doNoneStreamChat(s.HTTPClient, req, s.Name())
 }
 
+// ListModels fetches model metadata from the provider API.
 func (s *SiliconFlowModel) ListModels(ctx context.Context, modelCfg *ModelConfig) (*[]dto.ListModelsResponse, error) {
 	url := fmt.Sprintf("%s/%s", s.BaseURL, s.URLSuffix)
 
@@ -100,6 +102,7 @@ func (s *SiliconFlowModel) ListModels(ctx context.Context, modelCfg *ModelConfig
 	return &models, nil
 }
 
+// Name returns the model provider name.
 func (s *SiliconFlowModel) Name() string {
 	return "SiliconFlow"
 }

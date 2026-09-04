@@ -19,6 +19,7 @@ func NewProviderDAO() *ProviderDAO {
 	return &ProviderDAO{}
 }
 
+// GetProviderByID queries a provider by ID.
 func (d *ProviderDAO) GetProviderByID(ctx context.Context, db *gorm.DB, providerID string) (*entity.Provider, error) {
 	var provider entity.Provider
 	err := db.WithContext(ctx).

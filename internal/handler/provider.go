@@ -25,16 +25,16 @@ func (h *ProviderHandler) ListProviders(c *gin.Context) {
 	result, err := h.providerSvr.ListProviders(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
-			"msg":  err.Error(),
+			"code":    http.StatusInternalServerError,
+			"message": err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"data": result,
-		"msg":  "success",
+		"code":    http.StatusOK,
+		"data":    result,
+		"message": "success",
 	})
 }
 
@@ -43,8 +43,8 @@ func (h *ProviderHandler) CreateProvider(c *gin.Context) {
 	var req dto.CreateProviderRequest
 	if err := c.ShouldBind(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  err.Error(),
+			"code":    http.StatusBadRequest,
+			"message": err.Error(),
 		})
 		return
 	}
@@ -56,25 +56,26 @@ func (h *ProviderHandler) CreateProvider(c *gin.Context) {
 			status = http.StatusBadRequest
 		}
 		c.JSON(status, gin.H{
-			"code": status,
-			"msg":  err.Error(),
+			"code":    status,
+			"message": err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"data": provider,
-		"msg":  "success",
+	c.JSON(http.StatusCreated, gin.H{
+		"code":    http.StatusCreated,
+		"data":    provider,
+		"message": "success",
 	})
 }
 
+// UpdateProvider handles updating a provider configuration.
 func (h *ProviderHandler) UpdateProvider(c *gin.Context) {
 	var req dto.UpdateProviderRequest
 	if err := c.ShouldBind(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  err.Error(),
+			"code":    http.StatusBadRequest,
+			"message": err.Error(),
 		})
 		return
 	}
@@ -91,24 +92,25 @@ func (h *ProviderHandler) UpdateProvider(c *gin.Context) {
 			status = http.StatusNotFound
 		}
 		c.JSON(status, gin.H{
-			"code": status,
-			"msg":  err.Error(),
+			"code":    status,
+			"message": err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"msg":  "success",
+		"code":    http.StatusOK,
+		"message": "success",
 	})
 }
 
+// DeleteProvider handles deleting a provider configuration.
 func (h *ProviderHandler) DeleteProvider(c *gin.Context) {
 	providerID := strings.TrimSpace(c.Param("provider_id"))
 	if providerID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"code": http.StatusBadRequest,
-			"msg":  "provider id is required",
+			"code":    http.StatusBadRequest,
+			"message": "provider id is required",
 		})
 		return
 	}
@@ -116,14 +118,11 @@ func (h *ProviderHandler) DeleteProvider(c *gin.Context) {
 	err := h.providerSvr.DeleteProvider(c.Request.Context(), providerID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"code": http.StatusInternalServerError,
-			"msg":  err.Error(),
+			"code":    http.StatusInternalServerError,
+			"message": err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"msg":  "success",
-	})
+	c.Status(http.StatusNoContent)
 }

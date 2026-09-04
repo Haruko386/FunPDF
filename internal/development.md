@@ -12,11 +12,11 @@ This document describes all HTTP APIs currently registered in `internal/router.g
 > {
 >   "code": 200,
 >   "data": {},
->   "msg": "success"
+>   "message": "success"
 > }
 > ```
 >
-> Translator handlers currently use `message` instead of `msg`. Some delete endpoints return only an HTTP status code with no JSON body.
+> Handlers return `message` for response status text. Some delete endpoints return only an HTTP status code with no JSON body.
 
 ## Common conventions
 
@@ -175,7 +175,7 @@ Clears the server-side in-memory PDF text cache. On success, the endpoint return
 ```json
 {
   "code": 200,
-  "msg": "success"
+  "message": "success"
 }
 ```
 
@@ -395,7 +395,7 @@ Deletes a provider configuration. On success, the endpoint returns:
 ```json
 {
   "code": 200,
-  "msg": "success"
+  "message": "success"
 }
 ```
 
@@ -509,7 +509,7 @@ On success, the endpoint returns:
 ```json
 {
   "code": 200,
-  "msg": "success"
+  "message": "success"
 }
 ```
 
@@ -543,7 +543,7 @@ Response:
   "data": {
     "id": "session-id"
   },
-  "msg": "success"
+  "message": "success"
 }
 ```
 
@@ -554,7 +554,7 @@ Deletes a PDF AI chat session. On success, the endpoint returns:
 ```json
 {
   "code": 200,
-  "msg": "success"
+  "message": "success"
 }
 ```
 

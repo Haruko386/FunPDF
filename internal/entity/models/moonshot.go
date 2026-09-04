@@ -14,6 +14,7 @@ type MoonShotModel struct {
 	BaseModel
 }
 
+// Chat sends messages to the provider chat completion API.
 func (m *MoonShotModel) Chat(ctx context.Context, modelCfg *ModelConfig, chatCfg *ChatConfig, messages []Message, modelName string, sender func(*string, *string) error) (*dto.ChatResponse, error) {
 	url := fmt.Sprintf("%s/%s", m.BaseURL, m.URLSuffix)
 
@@ -45,6 +46,7 @@ func (m *MoonShotModel) Chat(ctx context.Context, modelCfg *ModelConfig, chatCfg
 	return doNoneStreamChat(m.HTTPClient, req, m.Name())
 }
 
+// ListModels fetches model metadata from the provider API.
 func (m *MoonShotModel) ListModels(ctx context.Context, modelCfg *ModelConfig) (*[]dto.ListModelsResponse, error) {
 	url := fmt.Sprintf("%s/%s", m.BaseURL, m.URLSuffix)
 
@@ -100,6 +102,7 @@ func (m *MoonShotModel) ListModels(ctx context.Context, modelCfg *ModelConfig) (
 	return &models, nil
 }
 
+// Name returns the model provider name.
 func (m *MoonShotModel) Name() string {
 	return "MoonShot"
 }

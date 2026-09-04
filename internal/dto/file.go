@@ -29,3 +29,7 @@ type AlertFileRequest struct {
 	Name     string `json:"name"`
 	MimeType string `json:"mime_type"`
 }
+
+type ImportLocalFileRequest struct {
+	Path string `json:"path" binding:"required"`
+}
